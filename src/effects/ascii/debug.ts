@@ -35,6 +35,9 @@ export function initAsciiDebug(portrait: AsciiPortrait): Module {
     return { destroy() {} };
   }
 
+  // Solo con ?debug: da acceso a la instancia real para los scripts de comparación
+  (window as unknown as { __asciiPortrait?: AsciiPortrait }).__asciiPortrait = portrait;
+
   const panel = document.createElement('div');
   panel.className = 'ascii-debug';
   panel.innerHTML = `<p class="ascii-debug__title">ASCII debug</p><p class="ascii-debug__stats" data-stats>—</p>`;

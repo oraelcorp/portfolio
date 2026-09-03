@@ -29,6 +29,12 @@ export interface AsciiOptions {
   interactive?: boolean;
   /** Avisa del cambio de modo, venga del canvas o del botón accesible. */
   onModeChange?: (mode: 'ascii' | 'color') => void;
+  /** Familia del retrato. JetBrains Mono es monoespaciada; Silkscreen NO (avances desiguales). */
+  fontFamily?: string;
+  /** Ajusta la celda a píxeles de dispositivo enteros: sin esto el texto sale borroso. */
+  pixelSnap?: boolean;
+  /** Estira el glifo en X para llenar una celda cuadrada. Deforma los trazos verticales. */
+  stretch?: boolean;
 }
 
 const ALPHA_STEPS = 8;
@@ -103,6 +109,11 @@ export class AsciiPortrait implements Module {
   private frameMs = 0;
   /** Paso horizontal en el espacio ya estirado: una celda = un avance de glifo. */
   private stepX = 0;
+  /** Celda y tamaño de fuente EFECTIVOS: ya ajustados a píxel y al alto real del glifo. */
+  private cw = 0;
+  private ch = 0;
+  private fs = 0;
+  private stretchX = 1;
 
   // Crossfade ascii ↔ color: dos canvas ya pintados que se componen por opacidad
   private fadeFrom: HTMLCanvasElement | null = null;
@@ -122,11 +133,10 @@ export class AsciiPortrait implements Module {
     const { onModeChange, ...rest } = options;
     this.opts = {
       // Grid MEDIDO en la referencia (scripts/measure-grid.ts): 7.56 px, celdas cuadradas.
-      // fontSize = cellH para que el glifo no invada la fila siguiente; el ancho se llena
-      // estirando el texto en X, que es lo que su atlas WebGL hace gratis (§6.3 punto 1).
       cellW: 7.56,
       cellH: 7.56,
-      fontSize: 7.56,
+      // 0 = automático: se deduce del alto real de la tinta para que el glifo quepa en la celda
+      fontSize: 0,
       pointerRadius: 6,
       contrast: 1.4,
       // Calibrados contra la proporción de highlights medida en la referencia (24 % de las
@@ -134,6 +144,9 @@ export class AsciiPortrait implements Module {
       smooth: 1.0,
       highlightDelta: 0.12,
       interactive: true,
+      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+      pixelSnap: true,
+      stretch: true,
       ...rest,
       onModeChange: onModeChange ?? ((): void => {}),
     };
@@ -164,6 +177,11 @@ export class AsciiPortrait implements Module {
 
   get currentMode(): 'ascii' | 'color' {
     return this.mode;
+  }
+
+  /** Métricas efectivas tras el ajuste a píxel y al alto del glifo (las lee ?debug). */
+  get metrics(): { cw: number; ch: number; fs: number; stretchX: number } {
+    return { cw: this.cw, ch: this.ch, fs: this.fs, stretchX: this.stretchX };
   }
 
   private async load(): Promise<void> {
@@ -225,10 +243,52 @@ export class AsciiPortrait implements Module {
     this.canvas.width = Math.round(rect.width * this.dpr);
     this.canvas.height = Math.round(rect.height * this.dpr);
 
-    this.cols = Math.max(1, Math.floor(rect.width / this.opts.cellW));
-    this.rows = Math.max(1, Math.floor(rect.height / this.opts.cellH));
+    this.computeMetrics();
+
+    this.cols = Math.max(1, Math.floor(rect.width / this.cw));
+    this.rows = Math.max(1, Math.floor(rect.height / this.ch));
 
     this.sample();
+  }
+
+  /**
+   * Calcula la celda y el tamaño de fuente EFECTIVOS. Dos correcciones medidas
+   * (scripts/diagnose-type.ts) que explican el aspecto "grueso y sucio":
+   *
+   *  1. A 7.56 px, JetBrains Mono tiene una caja de fuente de 10 px y una caja de tinta de 8 px:
+   *     el glifo se salía 2.44 px e invadía la fila siguiente. Aquí se reduce `fontSize` hasta
+   *     que la tinta real de la rampa cabe dentro de la celda.
+   *  2. Con celda 7.56 a DPR 1, las columnas caían en 7.56 / 15.12 / 22.68… — píxeles
+   *     fraccionarios, que el rasterizador difumina. `pixelSnap` lleva la celda al entero de
+   *     dispositivo más cercano para que cada glifo caiga sobre la rejilla física.
+   */
+  private computeMetrics(): void {
+    const snap = (v: number): number =>
+      this.opts.pixelSnap ? Math.max(1, Math.round(v * this.dpr)) / this.dpr : v;
+
+    this.cw = snap(this.opts.cellW);
+    this.ch = snap(this.opts.cellH);
+
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    // Se mide la tinta real de toda la rampa a un tamaño de sonda y se escala para que quepa
+    const probe = this.ch;
+    ctx.font = `${probe}px ${this.opts.fontFamily}`;
+    let ink = 0;
+    for (const ch of `.'\`:,;-~+17cr23ae56bd89AE04BCDF68#%@`) {
+      const m = ctx.measureText(ch);
+      ink = Math.max(ink, m.actualBoundingBoxAscent + m.actualBoundingBoxDescent);
+    }
+
+    const fitted = ink > 0 ? probe * (this.ch / ink) : this.ch;
+    this.fs = this.opts.fontSize > 0 ? this.opts.fontSize : fitted;
+
+    ctx.font = `${this.fs}px ${this.opts.fontFamily}`;
+    const advance = ctx.measureText('0').width || this.fs * 0.6;
+
+    this.stretchX = this.opts.stretch ? this.cw / advance : 1;
+    this.stepX = this.cw / this.stretchX;
   }
 
   private sample(): void {
@@ -239,7 +299,7 @@ export class AsciiPortrait implements Module {
 
     // §6.3 punto 2 — recorte "cover" contra la proporción del ÁREA MOSTRADA, no contra cols/rows:
     // con celdas no cuadradas lo segundo deforma al sujeto en exactamente cellH/cellW.
-    const targetAspect = (cols * this.opts.cellW) / (rows * this.opts.cellH);
+    const targetAspect = (cols * this.cw) / (rows * this.ch);
     const srcAspect = this.image.width / this.image.height;
 
     let sw = this.image.width;
@@ -378,18 +438,8 @@ export class AsciiPortrait implements Module {
    * por pasada (nunca por glifo) y las coordenadas x pasan a medirse en avances de glifo.
    */
   private prepare(ctx: CanvasRenderingContext2D): void {
-    const font = `${this.opts.fontSize}px "JetBrains Mono", ui-monospace, monospace`;
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.font = font;
-    // measureText no depende del transform: mide en unidades de la fuente
-    const advance = ctx.measureText('0').width || this.opts.fontSize * 0.6;
-
-    this.stepX = advance;
-    const stretchX = this.opts.cellW / advance;
-
-    ctx.setTransform(this.dpr * stretchX, 0, 0, this.dpr, 0, 0);
-    ctx.font = font;
+    ctx.setTransform(this.dpr * this.stretchX, 0, 0, this.dpr, 0, 0);
+    ctx.font = `${this.fs}px ${this.opts.fontFamily}`;
     ctx.textBaseline = 'top';
   }
 
@@ -398,7 +448,7 @@ export class AsciiPortrait implements Module {
     if (to <= from) return;
     this.prepare(ctx);
 
-    const { cellH } = this.opts;
+    const cellH = this.ch;
     const stepX = this.stepX;
 
     for (const bucket of this.buckets) {
@@ -420,7 +470,7 @@ export class AsciiPortrait implements Module {
     const ctx = this.ctx;
     this.prepare(ctx);
 
-    const { cellH } = this.opts;
+    const cellH = this.ch;
     const stepX = this.stepX;
     const reveal = Math.floor(this.revealRow);
 
@@ -445,7 +495,7 @@ export class AsciiPortrait implements Module {
   /** Repinta el rectángulo que cubre la posición anterior y la actual del puntero. */
   private paintPointerRegion(prevX: number, prevY: number): void {
     const ctx = this.ctx;
-    const { cellH } = this.opts;
+    const cellH = this.ch;
     const pad = this.opts.pointerRadius + 1;
     const cols = this.cols;
     const reveal = Math.floor(this.revealRow);
@@ -481,7 +531,7 @@ export class AsciiPortrait implements Module {
           const lifted = clamp(l + 0.35 * falloff, 0, 1);
           ctx.fillStyle = this.rgba(this.fg[0], this.fg[1], this.fg[2], 0.4 + 0.6 * falloff);
           // El ripple va en el espacio ya estirado, por eso se divide por el factor
-          const dx = (Math.sin((y + this.lastShimmer * 0.002) * 1.7) * 2 * falloff * stepX) / this.opts.cellW;
+          const dx = (Math.sin((y + this.lastShimmer * 0.002) * 1.7) * 2 * falloff * stepX) / this.cw;
           ctx.fillText(denseChar(lifted, i, this.salt[i] ?? 0), x * stepX + dx, y * cellH);
         } else {
           ctx.fillStyle = this.styleFor(i, l, this.colorMix);
