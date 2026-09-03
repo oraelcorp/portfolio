@@ -5,7 +5,7 @@
 import { chromium } from 'playwright';
 import type { Page } from 'playwright';
 import { spawn } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const PORT = 4173;
@@ -53,8 +53,14 @@ async function shootSections(page: Page, viewport: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
+
+  // Se borran SOLO las capturas de este script. Antes se borraba screenshots/ entero, lo que
+  // se llevaba por delante side-by-side.png y las carpetas phase2/, phase3/, type/, tune/…
+  const mine = new RegExp(`^(${VIEWPORTS.map((v) => v.name).join('|')})-.*\\.png$`);
+  for (const entry of readdirSync(OUT, { withFileTypes: true })) {
+    if (entry.isFile() && mine.test(entry.name)) rmSync(join(OUT, entry.name), { force: true });
+  }
 
   const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
     stdio: 'ignore',

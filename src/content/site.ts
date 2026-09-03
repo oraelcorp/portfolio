@@ -12,8 +12,8 @@ export const site = {
     role: 'Mechatronics Engineer & AI Developer',
     location: 'Guadalajara, MX',
     timezone: 'America/Mexico_City',
-    email: TODO, // TODO_JAVIER
-    url: TODO, // TODO_JAVIER
+    email: 'traperouu21@gmail.com',
+    url: TODO, // TODO_JAVIER: dominio final, para el canonical y las OG
     ogDescription: 'Mechatronics engineer building AI products. Portfolio built with Claude Code.',
   },
 
@@ -31,13 +31,11 @@ export const site = {
       { label: 'Contact', href: '#contact' },
     ],
     socials: [
-      // TODO_JAVIER: URLs reales de GitHub / LinkedIn / X
-      { label: 'GitHub', href: TODO },
-      { label: 'LinkedIn', href: TODO },
-      { label: 'X', href: TODO },
+      { label: 'GitHub', href: 'https://github.com/oraelcorp' },
+      { label: 'Instagram', href: 'https://www.instagram.com/traperouu' },
     ],
     status: [
-      { label: 'OPEN TO INTERNSHIPS & FREELANCE' }, // PROPUESTA
+      { label: 'OPEN TO INTERNSHIPS & FREELANCE' }, // confirmado por Javier
       { label: 'BASED IN GUADALAJARA, MX' },
     ],
   },
@@ -63,9 +61,9 @@ export const site = {
   stats: {
     photo: { src: '/img/about/javier.webp', alt: 'Javier' }, // TODO_JAVIER: foto real
     items: [
-      { value: '02', label: 'PRODUCTS CO-FOUNDED' }, // dato ya presente en el manifiesto de Javier
-      { value: TODO, label: 'USERS REACHED' }, // TODO_JAVIER
-      { value: TODO, label: 'PROJECTS SHIPPED' }, // TODO_JAVIER
+      { value: '02', label: 'PRODUCTS CO-FOUNDED' },
+      { value: '2+', label: 'YEARS BUILDING WEB & SAAS PRODUCTS' },
+      { value: '2+', label: 'YEARS INTO MECHATRONICS ENGINEERING' },
     ],
   },
 
@@ -78,26 +76,26 @@ export const site = {
     steps: [
       {
         n: '01',
-        title: 'Understand the system.', // PROPUESTA
-        desc: 'Before writing anything I map the whole loop: inputs, constraints, failure modes and who actually uses it.',
-        media: { src: '/img/process/01.webp', alt: '' }, // TODO_JAVIER
+        title: 'Spec first.',
+        desc: 'I write the detailed spec before a single line of code, mapping every effect, edge case, and decision so nothing is left to guesswork.',
+        media: { src: '/img/process/01.webp', alt: '' }, // TODO_JAVIER: media de cada paso
       },
       {
         n: '02',
-        title: 'Prototype in days, not weeks.', // PROPUESTA
-        desc: 'A rough version that runs beats a perfect version on paper. I build the thinnest thing that proves the idea.',
+        title: 'Build in phases.',
+        desc: 'Each phase ships something testable and verified — build, lint, screenshots — before the next one starts.',
         media: { src: '/img/process/02.webp', alt: '' },
       },
       {
         n: '03',
-        title: 'Build it properly.', // PROPUESTA
-        desc: 'Typed, tested and readable — with the motion, hardware and models treated as one system rather than layers.',
+        title: "Measure, don't assume.",
+        desc: 'Every claim gets checked against the pixels, not the narrative: performance budgets, contrast, visual diffs.',
         media: { src: '/img/process/03.webp', alt: '' },
       },
       {
         n: '04',
-        title: 'Ship and measure.', // PROPUESTA
-        desc: 'It only counts once it is in someone else’s hands and the numbers say whether it worked.',
+        title: 'Iterate in the open.',
+        desc: 'Version-controlled checkpoints at every decision, so nothing is ever a dead end, just a branch worth exploring.',
         media: { src: '/img/process/04.webp', alt: '' },
       },
     ],
@@ -184,9 +182,18 @@ export const site = {
   faq: {
     heading: 'Common questions',
     items: [
-      { q: 'HOW DO YOU ACTUALLY WORK WITH AI?', a: TODO }, // TODO_JAVIER
-      { q: 'WHAT ARE YOU STUDYING RIGHT NOW?', a: TODO },
-      { q: 'ARE YOU AVAILABLE FOR WORK?', a: TODO },
+      {
+        q: 'WHERE DO YOU STUDY?',
+        a: 'Mechatronics engineering at Tecnológico de Monterrey, Campus Guadalajara.',
+      },
+      {
+        q: 'DO YOU TAKE FREELANCE WORK?',
+        a: 'Yes — open to freelance and collaborations, especially around AI-powered products and creative web development.',
+      },
+      {
+        q: 'WHAT KIND OF PROJECTS DO YOU ENJOY MOST?',
+        a: "The ones where hardware logic meets AI — building SaaS products and intelligent systems for companies, where a system doesn't just run, it learns and gets better the more it's used.",
+      },
       {
         q: 'HOW WAS THIS SITE BUILT?',
         // Hecho verificable del propio proyecto, no inventado.
@@ -198,10 +205,10 @@ export const site = {
   contact: {
     heading: ["Let's build", 'something.'],
     sub: 'Send a message or book a call. I read everything.',
-    email: TODO, // TODO_JAVIER
+    email: 'traperouu21@gmail.com',
     note: 'Working with teams remotely.',
     link: { label: 'Get in touch', href: '#contact' },
-    button: { label: "LET'S WORK TOGETHER", href: TODO },
+    button: { label: "LET'S WORK TOGETHER", href: 'mailto:traperouu21@gmail.com' },
   },
 
   footer: {
