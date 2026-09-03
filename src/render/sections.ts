@@ -118,9 +118,9 @@ function hero(): string {
   return `
   <section class="section hero container" data-section="hero" data-theme="dark" id="top">
     <div class="hero__text">
-      <h1 class="hero__title t-display" data-split>${title}</h1>
-      <p class="hero__sub t-body-lg">${esc(site.hero.subtitle)}</p>
-      <div class="hero__actions">
+      <h1 class="hero__title t-display" data-hero-title>${title}</h1>
+      <p class="hero__sub t-body-lg" data-hero-sub>${esc(site.hero.subtitle)}</p>
+      <div class="hero__actions" data-hero-actions>
         ${button(site.hero.primary.label, site.hero.primary.href)}
         <a class="btn-text t-body" href="${esc(site.hero.secondary.href)}">${esc(site.hero.secondary.label)}</a>
       </div>
@@ -132,7 +132,7 @@ function hero(): string {
       <button class="hero__hint t-mono-sm" type="button" data-ascii-toggle>${esc(site.hero.asciiHint)}</button>
     </div>
 
-    <div class="hero__clients">
+    <div class="hero__clients" data-hero-clients>
       ${clients}
       <span class="t-mono">${esc(site.clients.label)}</span>
     </div>

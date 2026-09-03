@@ -15,9 +15,21 @@
   }
 
   .stack__name {
+    position: relative;
     padding-bottom: 0.75rem;
     color: var(--accent-text);
-    border-bottom: 1px solid var(--rule);
+    --rule-scale: 1;
+  }
+
+  .stack__name::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: var(--rule);
+    transform: scaleX(var(--rule-scale));
+    transform-origin: left;
   }
 
   .stack__items {

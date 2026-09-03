@@ -22,12 +22,25 @@
     align-content: start;
   }
 
+  /* La línea vive en un ::after para poder dibujarla con scaleX al entrar (§6.8) */
   .principles__title {
+    position: relative;
     display: flex;
     gap: 0.625rem;
     align-items: center;
     padding-bottom: 0.875rem;
-    border-bottom: 1px solid var(--rule);
+    --rule-scale: 1;
+  }
+
+  .principles__title::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: var(--rule);
+    transform: scaleX(var(--rule-scale));
+    transform-origin: left;
   }
 
   .principles__title .bullet {

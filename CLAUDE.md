@@ -106,7 +106,11 @@ desviaciones deliberadas de la fidelidad estricta. **No revertirlos "por fidelid
   - **Métricas frente a la referencia:** peso 26.4 vs 23.1 (×1.14) · celdas con tinta 30.1 % vs 26.3 % · highlights 20.5 % vs 20.9 % · pintado **1.0–2.2 ms** (presupuesto 4 ms).
   - 13/13 en `check-phase3.ts`, 0 errores de consola, bundle 75 kB gzip.
   - **Aparcado para más adelante (no tocar todavía):** paleta multi-tono artística para el modo color — puede ir después de la Fase 4 o vivir en la Fase 8 junto a la versión WebGL.
-- [ ] Fase 4 — Animaciones de scroll y secciones
+- [ ] **Fase 4 — Animaciones de scroll y secciones. EN CURSO.**
+  - Hecho: `SplitReveal.ts` con SplitText (`autoSplit`, que además resuelve el re-split en resize que §6.14 pedía a mano) · **entrada del hero solapada con la salida del preloader** — cierra la deuda de la Fase 2: el titular arranca a los 736 ms y el overlay se va a los 2737 ms · entradas por scroll de las 7 secciones con stagger · hairlines que se dibujan con `scaleX` · marquee infinito que acelera con la velocidad de Lenis · acordeón del FAQ (una abierta a la vez, `ScrollTrigger.refresh()` al cambiar el alto) · footer con reloj de Guadalajara, wordmark con scrub y **easter eggs G (rejilla de 12 columnas) y C (rota el acento)**.
+  - 14/14 en `check-phase4.ts` · scroll a **16.6 ms de mediana (60 fps)** con 4.8 % de frames por encima de 20 ms, por debajo del 5 % que exige §9 · bundle 80 kB gzip.
+  - Pendiente: scrollytelling del proceso (pasos que se encienden + media sticky) · showcase sticky de work con la pill "VIEW PROJECT" siguiendo al cursor · odómetros de las cifras (`Counter.ts`) · radial del acento en contacto (§6.12) · hover de principios y stack (bullet + scramble) · integrar los assets reales cuando lleguen.
+  - ⚠️ **Detectado, sin resolver:** al pasar contenido por detrás del nav transparente puede colisionar con el texto del propio nav (visto en `screenshots/phase4/faq-open.png`: "Remotion" del stack encima de "MENU"). Es consecuencia directa del nav sin fondo que se midió en la referencia. Decidir en Fase 5 si se deja o se le pone un degradado sutil detrás.
 - [ ] Fase 5 — Responsive, accesibilidad, performance
 - [ ] Fase 6 — Deploy y README
 - [ ] Fase 7 (opcional) — Páginas de caso + transiciones

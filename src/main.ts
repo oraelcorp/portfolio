@@ -7,7 +7,12 @@ import { initPreloader } from './core/preloader.ts';
 import { initNav } from './components/Nav.ts';
 import { initMenu } from './components/Menu.ts';
 import { initMagnetic } from './components/MagneticButton.ts';
+import { initMarquee } from './components/Marquee.ts';
 import { initAscii } from './sections/hero.ts';
+import { initHeroIntro } from './sections/heroIntro.ts';
+import { initReveals } from './sections/reveals.ts';
+import { initFaq } from './sections/faq.ts';
+import { initFooter } from './sections/footer.ts';
 import type { Module } from './core/utils.ts';
 
 const modules: Module[] = [];
@@ -44,8 +49,14 @@ function boot(): void {
     initNav(),
     initMenu(),
     initMagnetic(),
-    // El retrato espera a que el preloader salga para hacer su barrido (§6.3 punto 8)
+    // El retrato espera a que el preloader salga del todo para su barrido (§6.3 punto 9)
     initAscii(preloader.done),
+    // El texto del hero entra ANTES, mientras el overlay se va (§6.1)
+    initHeroIntro(preloader.exiting),
+    initReveals(),
+    initMarquee(),
+    initFaq(),
+    initFooter(),
   );
 }
 

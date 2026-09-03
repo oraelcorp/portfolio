@@ -1,0 +1,19 @@
+/* grid-overlay.css — rejilla de 12 columnas del easter egg "G" (§6.13). Fase 4. */
+
+@layer components {
+  .grid-overlay {
+    position: fixed;
+    z-index: 80;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .grid-overlay .container {
+    height: 100%;
+  }
+
+  .grid-overlay span {
+    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-inline: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+}

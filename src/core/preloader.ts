@@ -22,20 +22,30 @@ async function assetsReady(): Promise<void> {
 }
 
 export interface Preloader extends Module {
-  /** Resuelve cuando el overlay empieza a salir: el hero solapa su entrada aquí (§6.1). */
+  /** Resuelve cuando el overlay ARRANCA su salida: aquí entra el hero, por debajo (§6.1). */
+  readonly exiting: Promise<void>;
+  /** Resuelve cuando el overlay ya se ha ido: aquí arranca el barrido del retrato (§6.3). */
   readonly done: Promise<void>;
 }
 
 export function initPreloader(): Preloader {
   const el = document.querySelector<HTMLElement>('[data-preloader]');
 
-  if (!el) return { done: Promise.resolve(), destroy() {} };
+  if (!el) {
+    return { exiting: Promise.resolve(), done: Promise.resolve(), destroy() {} };
+  }
 
   // Solo la primera visita de la sesión (§6.1)
   if (sessionStorage.getItem(SESSION_KEY) === '1') {
     el.remove();
-    return { done: Promise.resolve(), destroy() {} };
+    return { exiting: Promise.resolve(), done: Promise.resolve(), destroy() {} };
   }
+
+  // Se avisa en cuanto empieza el wipe, para que el hero entre por debajo mientras se va
+  let startExit = (): void => {};
+  const exiting = new Promise<void>((resolve) => {
+    startExit = resolve;
+  });
 
   document.documentElement.dataset.loading = 'true';
   el.removeAttribute('hidden');
@@ -70,6 +80,9 @@ export function initPreloader(): Preloader {
     sessionStorage.setItem(SESSION_KEY, '1');
     document.documentElement.dataset.loading = 'false';
 
+    // A partir de aquí el hero puede entrar: lo hará por debajo del overlay que se va (§6.1)
+    startExit();
+
     if (reduced) {
       await gsap.to(el, { autoAlpha: 0, duration: 0.3, ease: 'none' });
     } else {
@@ -81,6 +94,7 @@ export function initPreloader(): Preloader {
   })();
 
   return {
+    exiting,
     done,
     destroy() {
       tl?.kill();
