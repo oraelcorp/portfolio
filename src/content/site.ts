@@ -145,7 +145,7 @@ export const site = {
   principles: {
     heading: 'What I bring.',
     label: '// THE BUILD',
-    overline: 'FOUR DISCIPLINES, ONE SYSTEM.',
+    overline: 'SIX DISCIPLINES, ONE SYSTEM.',
     items: [
       {
         title: 'AI PRODUCT DEVELOPMENT.',
@@ -163,8 +163,14 @@ export const site = {
         title: 'DATA & MODELING.',
         desc: 'Statistics, regression and forecasting turned into decisions.',
       },
-      { title: TODO, desc: TODO }, // TODO_JAVIER: 5º principio
-      { title: TODO, desc: TODO }, // TODO_JAVIER: 6º principio
+      {
+        title: 'PRODUCT FROM ZERO.',
+        desc: 'Scoping, building and shipping a product end to end, including the unglamorous parts between the idea and the first user.',
+      },
+      {
+        title: 'SYSTEMS THINKING.',
+        desc: 'Treating hardware, models and interface as one system rather than three layers that meet at the end.',
+      },
     ],
   },
 
