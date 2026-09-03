@@ -1,0 +1,73 @@
+/* process.css — scrollytelling: pasos a la izquierda, media sticky a la derecha (recon §3). Fase 1. */
+
+@layer components {
+  .process__body {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: start;
+  }
+
+  .process__intro {
+    max-width: 42rem;
+    margin-bottom: clamp(2rem, 4vw, 3.5rem);
+    color: var(--on-surface-muted);
+  }
+
+  .process__steps {
+    display: grid;
+    gap: clamp(2.5rem, 5vw, 4.5rem);
+    list-style: none;
+  }
+
+  .process__step {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 0.75rem 1rem;
+    align-items: start;
+    /* En Fase 4 los pasos inactivos bajan a 0.35 y el activo sube a 1 */
+    opacity: 1;
+  }
+
+  .process__step .bullet {
+    margin-top: 0.9em;
+    opacity: 0;
+  }
+
+  .process__step[data-active='true'] .bullet {
+    opacity: 1;
+  }
+
+  .process__n {
+    margin-top: 0.55em;
+    color: var(--on-surface-muted);
+  }
+
+  .process__step-title {
+    grid-column: 3;
+  }
+
+  .process__step-desc {
+    grid-column: 3;
+    max-width: 34rem;
+    color: var(--on-surface-muted);
+  }
+
+  .process__media {
+    position: sticky;
+    top: calc(var(--nav-h) + 2rem);
+    aspect-ratio: 4 / 5;
+  }
+
+  @media (width < 64rem) {
+    .process__body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .process__media {
+      position: static;
+      order: -1;
+    }
+  }
+}

@@ -1,0 +1,135 @@
+/* footer.css — 3 columnas + wordmark gigante en sans + canvas ASCII lateral (recon footer). Fase 1. */
+
+@layer components {
+  .footer {
+    position: relative;
+    padding-top: var(--section);
+    overflow: hidden;
+    background-color: var(--surface);
+    color: var(--on-surface);
+  }
+
+  .footer__cols {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: clamp(2rem, 4vw, 4rem);
+    align-items: start;
+  }
+
+  .footer__col {
+    display: grid;
+    gap: 1.5rem;
+    align-content: start;
+  }
+
+  .footer__nav {
+    display: grid;
+    gap: 0.375rem;
+    justify-items: center;
+    list-style: none;
+  }
+
+  .footer__link,
+  .footer__legal a {
+    color: var(--on-surface-muted);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .footer__link:hover,
+  .footer__legal a:hover {
+    color: var(--on-surface);
+  }
+
+  .footer__mails {
+    display: grid;
+    gap: 0.25rem;
+    justify-items: start;
+  }
+
+  .footer__mails a {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .footer__legal {
+    display: grid;
+    gap: 0.25rem;
+    justify-items: start;
+  }
+
+  /* Easter eggs de teclado (G / C) — se activan en Fase 4 */
+  .footer__hotkeys {
+    display: grid;
+    gap: 0.375rem;
+    color: var(--on-surface-dim);
+  }
+
+  .footer__hotkey {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .footer__key {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.5rem;
+    padding: 0.125rem 0.375rem;
+    background-color: var(--surface-elev);
+  }
+
+  .footer__meta {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0.25rem;
+    justify-items: center;
+    margin-top: clamp(4rem, 9vw, 8rem);
+    color: var(--on-surface-muted);
+    text-align: center;
+  }
+
+  /* Wordmark gigante: sans (no pixel), recortado por el borde inferior */
+  .footer__wordmark {
+    grid-column: 1 / -1;
+    margin-top: clamp(2rem, 5vw, 4rem);
+    margin-bottom: -0.12em;
+    font-size: var(--fs-footer);
+    font-weight: 500;
+    line-height: 0.8;
+    letter-spacing: -0.045em;
+    color: var(--surface-elev);
+    text-align: center;
+    user-select: none;
+  }
+
+  /* Los dos canvas ASCII que asoman por los bordes, sobre el wordmark */
+  .footer__ascii {
+    position: absolute;
+    bottom: 0;
+    z-index: 1;
+    width: min(28rem, 34vw);
+    aspect-ratio: 3 / 4;
+    pointer-events: none;
+  }
+
+  .footer__ascii--end {
+    inset-inline-end: 0;
+  }
+
+  @media (width < 64rem) {
+    .footer__cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .footer__nav,
+    .footer__meta {
+      justify-items: start;
+      text-align: left;
+    }
+
+    .footer__ascii {
+      display: none;
+    }
+  }
+}

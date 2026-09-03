@@ -1,0 +1,25 @@
+/* index.css — punto de entrada de estilos. El orden de @layer define la cascada. Fase 1. */
+
+@layer reset, tokens, base, components, utilities;
+
+@import './reset.css';
+@import './tokens.css';
+@import './typography.css';
+@import './layout.css';
+
+@import './components/button.css';
+@import './components/nav.css';
+@import './components/menu.css';
+@import './components/preloader.css';
+@import './components/placeholder.css';
+@import './components/hero.css';
+@import './components/ascii-debug.css';
+@import './components/stats.css';
+@import './components/process.css';
+@import './components/work.css';
+@import './components/marquee.css';
+@import './components/principles.css';
+@import './components/stack.css';
+@import './components/faq.css';
+@import './components/contact.css';
+@import './components/footer.css';

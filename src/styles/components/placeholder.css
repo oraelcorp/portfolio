@@ -1,0 +1,27 @@
+/* placeholder.css — marcadores generados por código para los assets que faltan (§7 · §10.6).
+   Nunca se descargan imágenes de terceros: hasta que Javier suba las suyas, esto ocupa el espacio. */
+
+@layer components {
+  .ph {
+    display: grid;
+    place-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    background-color: var(--surface-elev);
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--on-surface) 4%, transparent) 10px 20px
+    );
+    border: 1px solid var(--rule);
+    color: var(--on-surface-dim);
+  }
+
+  .ph__label {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-label-sm);
+    letter-spacing: var(--ls-mono);
+    text-transform: uppercase;
+  }
+}

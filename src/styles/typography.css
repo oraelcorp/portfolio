@@ -1,0 +1,109 @@
+/* typography.css — @font-face self-hosted + escala tipográfica (§4.2). Fase 1. */
+
+@layer base {
+  @font-face {
+    font-family: 'Inter';
+    src: url('/fonts/inter-var.woff2') format('woff2-variations');
+    font-weight: 400 600;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('/fonts/jetbrains-mono-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('/fonts/jetbrains-mono-500.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Silkscreen';
+    src: url('/fonts/silkscreen-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  body {
+    font-family: var(--ff-sans);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--on-surface);
+    background-color: var(--surface);
+  }
+
+  /* ---- Roles tipográficos (se aplican con clases, no con selectores de etiqueta) ---- */
+  .t-display {
+    font-size: var(--fs-display);
+    font-weight: 400;
+    line-height: var(--lh-display);
+    letter-spacing: var(--ls-display);
+  }
+
+  .t-h2 {
+    font-size: var(--fs-h2);
+    font-weight: 500;
+    line-height: var(--lh-h2);
+    letter-spacing: var(--ls-h2);
+  }
+
+  .t-h3 {
+    font-size: var(--fs-h3);
+    font-weight: 500;
+    line-height: var(--lh-h3);
+    letter-spacing: var(--ls-h3);
+  }
+
+  .t-body-lg {
+    font-size: var(--fs-body-lg);
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+  }
+
+  .t-body {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  /* Mono: labels, botones, metadatos. Tracking negativo (medido en la referencia). */
+  .t-mono {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-label);
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: var(--ls-mono);
+    text-transform: uppercase;
+  }
+
+  .t-mono-sm {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-label-sm);
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: var(--ls-mono);
+    text-transform: uppercase;
+  }
+
+  .t-pixel {
+    font-family: var(--ff-pixel);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+
+  .t-muted {
+    color: var(--on-surface-muted);
+  }
+
+  .t-accent {
+    color: var(--accent-text);
+  }
+}

@@ -1,0 +1,63 @@
+/* faq.css — acordeón: título a la izquierda, preguntas a la derecha (recon §6). Fase 1. */
+
+@layer components {
+  .faq__body {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: clamp(2rem, 4vw, 4rem);
+    align-items: start;
+  }
+
+  .faq__list {
+    display: grid;
+    list-style: none;
+  }
+
+  .faq__item {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .faq__item:first-child {
+    border-top: 1px solid var(--rule);
+  }
+
+  .faq__q {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
+    padding-block: 1.5rem;
+    text-align: left;
+    color: var(--on-surface-muted);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .faq__q:hover,
+  .faq__q[aria-expanded='true'] {
+    color: var(--on-surface);
+  }
+
+  .faq__icon {
+    flex: none;
+    font-family: var(--ff-mono);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .faq__q[aria-expanded='true'] .faq__icon {
+    transform: rotate(45deg);
+  }
+
+  .faq__a {
+    max-width: 44rem;
+    padding-bottom: 1.5rem;
+    color: var(--on-surface-muted);
+  }
+
+  @media (width < 64rem) {
+    .faq__body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

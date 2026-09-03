@@ -1,0 +1,40 @@
+/* marquee.css — banda de texto infinita (§6.9). Fase 1: estática; el loop reactivo es Fase 4. */
+
+@layer components {
+  .marquee {
+    padding-block: clamp(2rem, 4vw, 3.5rem);
+    overflow: hidden;
+    color: var(--on-surface);
+    background-color: var(--surface);
+    border-block: 1px solid var(--rule);
+  }
+
+  .marquee__track {
+    display: flex;
+    gap: 2rem;
+    width: max-content;
+    align-items: center;
+  }
+
+  .marquee__group {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  /* §6.9: mono, uppercase, a tamaño de titular de sección */
+  .marquee__item {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-h2);
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: var(--ls-mono);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .marquee__sep {
+    color: var(--accent-text);
+    font-size: calc(var(--fs-h2) * 0.5);
+  }
+}

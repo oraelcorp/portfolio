@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# Salidas de análisis local — nunca se versionan
+# (los screenshots del sitio de referencia son solo para comparación, §9 Fase 0)
+recon/
+screenshots/

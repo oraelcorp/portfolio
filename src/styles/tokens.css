@@ -1,0 +1,100 @@
+/* tokens.css — design tokens (§4, corregidos con las mediciones de Fase 0 · recon/diff.md §B4). Fase 1. */
+
+@layer tokens {
+  :root {
+    /* ---- Color base (medido en la referencia con getComputedStyle) ---- */
+    --bg: #141314;
+    --bg-elev: #1e1d1e; /* cards y superficies elevadas sobre dark */
+    --bg-panel: #2b2a2b; /* panel del menú */
+    --fg: #eeeeee;
+    --fg-muted: #818081; /* labels */
+    --fg-dim: #696869; /* body atenuado */
+
+    /* ---- Tema claro (la home alterna dark/light por sección) ---- */
+    --bg-light: #ededed;
+    --card-light: #f6f6f5;
+    --fg-on-light: #141314;
+    --fg-muted-on-light: #696869;
+
+    /* ---- Acento (único color de marca). Editable en runtime: easter egg "C" ---- */
+    --accent: #39ff6a;
+    --accent-hover: #5cff85;
+    --accent-ink: #0f0e0e; /* texto sobre el acento */
+    --accent-on-light: #0b5f27; /* variante legible del acento sobre superficies claras */
+
+    /* ---- Reglas / hairlines ---- */
+    --line: rgb(238 238 238 / 12%);
+    --line-on-light: rgb(20 19 20 / 14%);
+
+    /* ---- Tipografía ---- */
+    --ff-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --ff-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Fira Code', monospace;
+    --ff-pixel: 'Silkscreen', var(--ff-mono);
+
+    /* Escala fluida: los máximos reproducen las medidas reales a 1440 px */
+    --fs-display: clamp(2.75rem, 6.1vw, 6rem); /* 87.8px @1440 · lh 1.1 · ls -.035em */
+    --fs-h2: clamp(2.25rem, 4.2vw, 4rem); /* 60.5px @1440 */
+    --fs-h3: clamp(1.5rem, 2.2vw, 2.25rem); /* 31.7px @1440 */
+    --fs-body: 1rem; /* 16/24 */
+    --fs-body-lg: clamp(1.125rem, 1.6vw, 1.5rem);
+    --fs-label: 0.875rem; /* mono 14px */
+    --fs-label-sm: 0.8125rem; /* mono 13px */
+    --fs-footer: clamp(4.5rem, 21vw, 19rem); /* wordmark gigante (sans, no pixel) */
+
+    --lh-display: 1.1;
+    --lh-h2: 1.125;
+    --lh-h3: 1.25;
+    --lh-body: 1.5;
+
+    --ls-display: -0.035em;
+    --ls-h2: -0.05em;
+    --ls-h3: -0.025em;
+    --ls-mono: -0.02em; /* la referencia usa tracking NEGATIVO en mono, no positivo */
+
+    /* ---- Espaciado y layout ---- */
+    --gutter: clamp(1.25rem, 2.2vw, 2rem); /* 32px @1440 */
+    --section: clamp(4rem, 8.9vw, 8rem); /* pt-64/lg:pt-128 de la referencia */
+    --col-gap: 1.5rem;
+    --radius: 0; /* todo es rectangular */
+    --nav-h: 6.5rem;
+
+    /* ---- Motion ---- */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-inout: cubic-bezier(0.83, 0, 0.17, 1);
+    --dur-fast: 0.3s;
+    --dur-base: 0.8s;
+    --dur-slow: 1.4s;
+  }
+
+  /* Mapeo semántico por tema de sección: cada sección declara data-theme
+     y el resto del CSS solo usa estas variables (nunca los colores crudos).
+     :root arranca en dark para que cualquier elemento fuera de una sección
+     temada (body, marquee, overlays) siempre resuelva a un color válido. */
+  :root,
+  [data-theme='dark'] {
+    --surface: var(--bg);
+    --surface-elev: var(--bg-elev);
+    --on-surface: var(--fg);
+    --on-surface-muted: var(--fg-muted);
+    --on-surface-dim: var(--fg-dim);
+    --rule: var(--line);
+    --accent-text: var(--accent);
+    --btn-bg: var(--accent);
+    --btn-ink: var(--accent-ink);
+    --btn-bg-hover: var(--accent-hover);
+  }
+
+  [data-theme='light'] {
+    --surface: var(--bg-light);
+    --surface-elev: var(--card-light);
+    --on-surface: var(--fg-on-light);
+    --on-surface-muted: var(--fg-muted-on-light);
+    --on-surface-dim: var(--fg-muted-on-light);
+    --rule: var(--line-on-light);
+    --accent-text: var(--accent-on-light);
+    /* Sobre claro el botón se invierte a oscuro (como "BOOK A 15-MIN CALL" en la referencia) */
+    --btn-bg: var(--fg-on-light);
+    --btn-ink: var(--bg-light);
+    --btn-bg-hover: #2e2c2e;
+  }
+}

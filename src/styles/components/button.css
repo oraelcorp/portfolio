@@ -1,0 +1,108 @@
+/* button.css — botón mono + botón cuadrado "+" (§6.4). Fase 1 (sin hover animado: eso es Fase 2). */
+
+@layer components {
+  .btn-group {
+    display: inline-flex;
+    gap: 4px; /* el gap exacto que separa el CTA del "+" en la referencia */
+    align-items: stretch;
+  }
+
+  /* Hover del CTA: el "+" y el label intercambian posición (Flip lo anima) */
+  .btn-group.is-swapped {
+    flex-direction: row-reverse;
+  }
+
+  .btn {
+    --btn-h: 2.75rem;
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--btn-h);
+    padding: 0.5rem 1.25rem;
+    font-family: var(--ff-mono);
+    font-size: var(--fs-label);
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: var(--ls-mono);
+    color: var(--btn-ink);
+    text-transform: uppercase;
+    white-space: nowrap;
+    background-color: var(--btn-bg);
+    border-radius: var(--radius);
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .btn:hover {
+    background-color: var(--btn-bg-hover);
+  }
+
+  /* Botón cuadrado "+": mismo alto, ancho = alto */
+  .btn--icon {
+    width: var(--btn-h);
+    padding: 0;
+    font-size: 1.125rem;
+  }
+
+  /* Slide vertical del label en hover: dos copias, la de arriba sube y entra la de abajo (§6.4) */
+  .btn__slide {
+    position: relative;
+    display: block;
+    height: 1em;
+    overflow: hidden;
+  }
+
+  .btn__label {
+    display: block;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .btn__label--ghost {
+    position: absolute;
+    inset: 0;
+    transform: translateY(100%);
+  }
+
+  .btn:hover .btn__label,
+  .btn:focus-visible .btn__label {
+    transform: translateY(-100%);
+  }
+
+  .btn:hover .btn__label--ghost,
+  .btn:focus-visible .btn__label--ghost {
+    transform: translateY(0);
+  }
+
+  /* Variante de texto con subrayado animado ("Tell me more") */
+  .btn-text {
+    position: relative;
+    align-self: center;
+    padding-block: 0.25rem;
+    color: var(--on-surface);
+  }
+
+  .btn-text::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: currentcolor;
+    transform-origin: left;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .btn-text:hover::after {
+    transform: scaleX(0);
+    transform-origin: right;
+  }
+
+  /* Bullet cuadrado del acento (marca de "activo" en la referencia) */
+  .bullet {
+    display: inline-block;
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: var(--accent-text);
+  }
+}

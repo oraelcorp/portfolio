@@ -1,0 +1,69 @@
+/* layout.css — grid de 12 columnas, contenedor, ritmo vertical y utilidades de sección (§4.3). Fase 1. */
+
+@layer base {
+  .container {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--col-gap);
+    width: 100%;
+    max-width: 120rem;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  /* Cada sección pinta su propio fondo según su data-theme */
+  .section {
+    background-color: var(--surface);
+    color: var(--on-surface);
+    padding-block: var(--section);
+  }
+
+  .section__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    align-items: baseline;
+    justify-content: space-between;
+    grid-column: 1 / -1;
+    margin-bottom: clamp(2.5rem, 5vw, 5rem);
+  }
+
+  /* Hairline que en Fase 4 se dibujará con scaleX */
+  .rule {
+    border: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .skip-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    padding: 0.75rem 1.25rem;
+    color: var(--accent-ink);
+    background: var(--accent);
+    transform: translateY(-120%);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Marcador de contenido pendiente (§10.5): visible, nunca inventado */
+  .todo {
+    color: var(--accent-text);
+    font-family: var(--ff-mono);
+    font-size: 0.9em;
+    letter-spacing: var(--ls-mono);
+  }
+}

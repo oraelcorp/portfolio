@@ -1,0 +1,9 @@
+dist/
+node_modules/
+recon/
+screenshots/
+public/fonts/
+package-lock.json
+
+# Documentos de Javier: no los reformatea la herramienta
+PORTFOLIO_SPEC.md

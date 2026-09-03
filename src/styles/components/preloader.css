@@ -1,0 +1,35 @@
+/* preloader.css — overlay de acento con bloques + "LOADING" (recon: NO lleva contador). Fase 1: markup. */
+
+@layer components {
+  .preloader {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: 0.5rem;
+    justify-items: center;
+    background-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .preloader[hidden] {
+    display: none;
+  }
+
+  .preloader__blocks {
+    display: flex;
+    gap: 3px;
+  }
+
+  .preloader__block {
+    width: 0.875rem;
+    height: 0.875rem;
+    background-color: var(--accent-ink);
+    opacity: 0.25;
+  }
+
+  .preloader__label {
+    color: var(--accent-ink);
+  }
+}

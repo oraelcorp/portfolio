@@ -1,0 +1,58 @@
+/* principles.css — grid 3×2 con títulos mono y hairline (recon §5 "THE BUILD"). Fase 1. */
+
+@layer components {
+  .principles__overline {
+    display: flex;
+    gap: 0.625rem;
+    align-items: center;
+    grid-column: 1 / -1;
+    margin-bottom: clamp(2.5rem, 5vw, 4.5rem);
+  }
+
+  .principles__grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(2rem, 4vw, 4rem) var(--col-gap);
+  }
+
+  .principles__item {
+    display: grid;
+    gap: 1.5rem;
+    align-content: start;
+  }
+
+  .principles__title {
+    display: flex;
+    gap: 0.625rem;
+    align-items: center;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .principles__title .bullet {
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  .principles__item:hover .principles__title .bullet {
+    opacity: 1;
+  }
+
+  .principles__desc {
+    max-width: 24rem;
+    color: var(--on-surface-muted);
+  }
+
+  @media (width < 64rem) {
+    .principles__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (width < 30rem) {
+    .principles__grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

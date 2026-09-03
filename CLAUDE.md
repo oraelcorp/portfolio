@@ -1,0 +1,132 @@
+# Javier Portfolio — CLAUDE.md
+
+Sitio de portafolio que replica las técnicas de good-fella.com con contenido propio.
+Spec completo: ./PORTFOLIO_SPEC.md (leer antes de cualquier tarea).
+Hallazgos de la Fase 0 que **corrigen** el spec: ./recon/sections.md y ./recon/diff.md (aprobados el 2026-09-02).
+
+## Stack (versiones reales instaladas — verificadas con `npm view`)
+
+- vite 8.2.2 · typescript 6.0.3 · gsap 3.15.0 · lenis 1.3.26 · playwright 1.62.1
+- eslint 10.9.1 · typescript-eslint 8.69.0 · prettier 3.9.6
+
+## Comandos
+
+- `npm run dev` · `npm run build` (tsc --noEmit && vite build) · `npm run preview`
+- `npm run lint` (eslint + prettier --check) · `npm run format`
+- `npm run shots` (capturas propias → screenshots/) · `npm run recon` (analiza el sitio de referencia)
+- `node scripts/check-phase2.ts` — suite de interacción (preloader, menú, teclado, tema del nav, magnetismo, reduced-motion)
+- `node scripts/check-phase3.ts` — suite del ASCII (reveal, shimmer, puntero, ms/frame, modo color, pausa)
+- `node scripts/measure-grid.ts` — mide el tamaño de celda por periodicidad de Fourier (se autovalida contra nuestro canvas)
+- `node scripts/verify-color-mapping.ts` — clasifica por celda el color de la referencia y compara peso visual
+- `node scripts/tune-highlights.ts` — barre `smooth`/`highlightDelta` contra la proporción medida
+- `node scripts/side-by-side.ts` — compone nuestro retrato junto al de la referencia
+- `npm run dev` + `?debug` — panel con sliders de cellW/cellH/fontSize/contraste/radio y ms/frame reales
+- `node scripts/recon-nav.ts` / `recon-footer.ts` — sondas puntuales sobre la referencia
+
+**`npm run shots` y `check-phase2` requieren `npm run build` antes** (levantan `vite preview` sobre dist/).
+Las capturas estáticas no bastan para juzgar interacción: para nav/menú/preloader usar `check-phase2.ts`.
+
+## Reglas (§10 del spec, íntegro)
+
+1. **Verificar antes de afirmar.** Versiones (`npm view`), APIs de GSAP/Lenis (consultar `node_modules/<pkg>/README.md` o los tipos `.d.ts` instalados — no memoria). Si `SplitText` no tiene una opción, no inventarla: leer `node_modules/gsap/types/split-text.d.ts`.
+2. **Mirar el resultado.** Tras cada cambio visual, correr `npm run shots` y **abrir/leer las imágenes** antes de declarar la tarea hecha. Comparar con `recon/reference/`.
+3. **No cambiar el spec silenciosamente.** Si algo del §6 es inviable o mejorable, escribir el cambio propuesto en `CLAUDE.md › Decisiones` con motivo, y preguntar si afecta el resultado visual.
+4. **Una fase a la vez.** No adelantar trabajo de fases posteriores.
+5. **Nada de contenido inventado.** Todo copy sale de `site.ts`; los `TODO_JAVIER` quedan como placeholders visibles (`[TODO]`) hasta que Javier los llene — nunca rellenarlos con datos ficticios (emails, empresas, logros).
+6. **Nada de assets de terceros.** No descargar imágenes, fuentes ni vídeos de good-fella.com ni de otros sitios. Placeholders generados por código.
+7. **Cero dependencias sorpresa.** Añadir un paquete requiere anotar en `CLAUDE.md` qué problema resuelve que no se podía resolver con lo existente.
+8. **Errores de consola = tarea no terminada.** Incluye warnings de GSAP ("target not found") y de Vite.
+9. **Reportar con honestidad.** Al final de cada fase: qué funciona, qué está aproximado, qué no se pudo verificar y por qué.
+
+## Convenciones
+
+- Un módulo = clase o `init<Nombre>()` que devuelve `{ destroy() }`. Todo destruible (HMR y transiciones).
+- Selectores por `data-*` (`data-hero`, `data-split`, `data-ascii`), **nunca** por clases de estilo.
+- Sin `any`. Sin `!important`. Sin librerías extra sin justificación aquí.
+- Cada archivo abre con 1–3 líneas de comentario: qué hace y en qué fase se creó.
+- CSS en capas: `@layer reset, tokens, base, components, utilities`.
+- Las secciones declaran `data-theme="dark|light"`; el CSS solo usa las variables semánticas
+  (`--surface`, `--on-surface`, `--rule`, `--btn-bg`…), nunca los colores crudos.
+
+### Tokens clave (medidos en la referencia, §4 + diff.md §B4)
+
+`--bg #141314` · `--fg #EEEEEE` · `--fg-muted #818081` · `--fg-dim #696869`
+`--bg-light #EDEDED` · `--card-light #F6F6F5` · `--fg-on-light #141314`
+`--accent #39FF6A` (verde terminal, único acento) · `--accent-on-light #0B5F27` · `--accent-ink #0F0E0E`
+Display lh 1.1 / ls −0.035em · H2 peso 500 ls −0.05em · **mono con tracking NEGATIVO (−0.02em)** · `--radius: 0`
+
+## Decisiones
+
+- **[2026-09-02] Estructura de secciones nueva · Motivo:** la Fase 0 mostró que la referencia no tiene marquee, about-manifiesto ni cursor custom, sino Hero → Stats → Process → Work → Build → FAQ → Contact → Footer. **Impacto visual:** alto; aprobado por Javier en `recon/diff.md`. Orden final: Hero → Stats → Process → Work → **Marquee** (conservado a petición de Javier) → Principles → Stack → FAQ → Contact → Footer.
+- **[2026-09-02] TypeScript 6.0.3 en vez de 7.0.2 · Motivo:** `typescript-eslint@8.69.0` declara `typescript >=4.8.4 <6.1.0`; con TS 7 el linter no funciona y §9 exige `npm run lint` limpio. **Impacto visual:** ninguno. Revisar cuando typescript-eslint soporte TS 7.
+- **[2026-09-02] Copy inyectado en build, no en cliente · Motivo:** §5 exige que el texto viva solo en `site.ts`, y §8 exige SEO. `vite.config.ts` monta un plugin `transformIndexHtml` que llama a `renderSite()` (src/render/sections.ts), así el HTML servido ya viene completo sin duplicar textos ni depender de JS. **Impacto visual:** ninguno (evita el flash de contenido vacío).
+- **[2026-09-02] `prefers-reduced-motion` fuera de `@layer` · Motivo:** §3 prohíbe `!important`; el CSS sin capa gana al CSS en capas, que da la misma prioridad sin usarlo. **Impacto visual:** ninguno.
+- **[2026-09-02] `menu-overlay.css` renombrado a `menu.css` · Motivo:** el menú de la referencia es un panel desplegable bajo el nav, no un overlay fullscreen (recon). **Impacto visual:** el del hallazgo, ya aprobado.
+- **[2026-09-02] Sin `cursor.ts` · Motivo:** la referencia no usa cursor custom; Javier aprobó eliminarlo. El feedback de hover se hace con scrambles, bullets y la pill "VIEW PROJECT".
+- **[2026-09-02] El nav es transparente y cambia de color por sección · Motivo:** medido en la referencia (`scripts/recon-nav.ts` → `recon/nav-behavior.json`): `background-color: rgba(0,0,0,0)` y el `color` alterna `#EEEEEE` / `#141314` según la sección de debajo. Corrige el nav opaco que se había hecho en Fase 1. **Impacto visual:** medio, acerca el resultado a la referencia.
+
+- **[2026-09-02] El jaguar no necesita espejarse · Motivo:** el `portrait.png` que subió Javier ya ruge hacia la izquierda, o sea hacia el centro de la página con el canvas a la derecha. No hace falta el flag `flipX` que se había previsto.
+- **[2026-09-02] El ASCII nunca repinta el canvas entero en un frame · Motivo:** pintar las ~6000 celdas cuesta ~11 ms, muy por encima del presupuesto de 4 ms de §8. Cada cambio repinta solo lo suyo: el shimmer sus ~180 celdas, el reveal solo las filas nuevas, el puntero el rectángulo afectado. Medido: de 11 ms a **1.2–2.2 ms**. **Impacto visual:** ninguno; el efecto es idéntico.
+- **[2026-09-02] El crossfade ascii↔color usa dos canvas, no interpolación por celda · Motivo:** recalcular el color de 6000 celdas por frame durante 0.9 s rompía el presupuesto. Se usa el **fallback que el propio §6.3 punto 11 autoriza**: se pintan dos canvas una vez y se componen por opacidad. **Contrapartida:** el shimmer queda congelado durante los 0.9 s de transición (el punto 11 pedía mantenerlo activo). Si algún día molesta, la salida es el atlas de glifos o la versión WebGL de la Fase 8.
+- **[2026-09-02] El color real se reescala con la curva de contraste del ASCII · Motivo:** usar el RGB muestreado tal cual dejaba el modo color apagado y verdoso sobre el fondo negro. Se conserva el tono de la foto pero se lleva la intensidad a la misma curva que la luminancia del ASCII. **Impacto visual:** los ámbar del jaguar se leen de verdad.
+- **[2026-09-02] El reveal arranca al terminar el preloader, no al decodificar la imagen · Motivo:** la imagen decodifica _durante_ el preloader, así que el barrido ocurría tapado por el overlay y no se veía nunca. `initAscii()` recibe la promesa `preloader.done` y dispara `reveal()` ahí (§6.3 punto 8).
+
+- **[2026-09-02] El grid de la referencia está MEDIDO, no estimado: 7.56 × 7.56 px (cuadrado) · Motivo:** `scripts/measure-grid.ts` localiza el periodo de la rejilla por magnitud de Fourier sobre los píxeles de las capturas de Fase 0; DPR 1 y DPR 2 coinciden (7.560 / 7.563) y el método se valida antes contra nuestro canvas, donde recupera 8.000 × 12.005 exactos. El `8 × 12` del spec era una estimación 1.68× menos densa. **Impacto visual:** alto — el spec §6.3 punto 1 queda actualizado; el código todavía NO (ver Pendiente).
+- **[2026-09-02] Corregido: el jaguar salía estirado 1.5× a lo alto · Motivo:** `sample()` ajustaba el recorte `cover` a la proporción `cols/rows` en vez de a la del área mostrada `(cols·cellW)/(rows·cellH)`, lo que deforma al sujeto exactamente en `cellH/cellW`. Verificado comparando `screenshots/grid/a-actual-8x12-f11.png` (estirado) con la versión de celda cuadrada. Ya aplicado el §6.3 punto 2.
+- **[2026-09-02] El mapeo acento-base / blanco-highlight queda VERIFICADO con píxeles · Motivo:** `scripts/verify-color-mapping.ts` binea la captura de referencia con el grid medido y clasifica cada celda por el color medio de su tinta. Resultado: 1131 celdas de acento (51.8 %) vs 357 blancas (16.4 %), las blancas con **2.65× más contraste local** (1450 vs 547). Las tres predicciones se cumplen. La duda del §6.3 punto 6 queda cerrada.
+- **[2026-09-02] `smooth` y `highlightDelta` calibrados contra la referencia, no a ojo · Motivo:** el 0.35 que proponía el spec, junto al suavizado nuevo, eliminaba el **100 %** de los highlights (el suavizado baja el contraste local, así que el umbral debe bajar con él). `scripts/tune-highlights.ts` barre combinaciones clasificando nuestro render con el mismo criterio por celda que la referencia: `smooth 1.0` + `highlightDelta 0.12` da 20.3 % de highlights frente al 24 % medido en good-fella. **Impacto visual:** los highlights pasan de inexistentes a marcar mandíbula, oreja y fauces.
+- **[2026-09-02] Estirado horizontal del glifo · Motivo:** con celda cuadrada, `fillText` deja hueco (un glifo mono avanza ~0.6 em). Se estira en X con una sola transformación por pasada y las coordenadas x pasan a medirse en avances de glifo (`stepX`). Es lo que su atlas WebGL hace gratis.
+- **[2026-09-02] ⚠️ Diferencia pendiente: nuestro retrato pesa 4.2× más que el de la referencia · Motivo:** medido con el mismo criterio (`verify-color-mapping.ts`): la proporción de celdas con tinta es parecida (26.3 % ellos, 30.1 % nosotros) pero la **luminancia media por píxel es 23.1 vs 97.5**. Parte es inevitable (el verde `#39FF6A` tiene luminancia 202 frente a los 117 de su naranja, ×1.7), el resto viene de nuestra curva de alpha `0.35 + 0.55·L`. Bajarla acercaría la delicadeza de la referencia. **Pendiente de decisión de Javier: es un cambio de aspecto, no un defecto.**
+
+### Diferenciadores intencionales (decisión de Javier, 2026-09-02)
+
+Estos efectos **no existen en good-fella.com** — está medido y la medición fue correcta. Javier los probó
+y los quiere igualmente como sello propio del portafolio. No son correcciones de un error: son
+desviaciones deliberadas de la fidelidad estricta. **No revertirlos "por fidelidad" en fases posteriores.**
+
+- **Magnetismo en el CTA y el "+" (`MagneticButton.ts`, §6.5).** Medido: el `transform` del CTA de la referencia es `none` en reposo, cerca y encima — no hay magnetismo. Se implementa igualmente.
+- **Nav que encoge a los 80 px y se oculta/reaparece según la dirección del scroll (§6.2 original).** Medido: la referencia mantiene `top:0`, 96 px de alto y `transform` identidad en toda la página. Se implementa igualmente. Nunca se oculta con el menú abierto (dejaría el botón CLOSE fuera de alcance) ni con `prefers-reduced-motion`.
+- **Tope al arrastre magnético (14 px exterior / 5 px interior).** El §6.5 da `(dx,dy) * 0.35` sin límite; en un CTA de ~240 px eso son ~51 px y el label se sale de la caja del botón (verificado en `screenshots/phase2/magnetic-pulled.png`). Se acota el máximo manteniendo la misma sensación. **Impacto visual:** el efecto pasa de exagerado a sutil.
+
+## Progreso
+
+- [x] **Fase 0 — Recon.** `recon/sections.md` + `recon/diff.md` entregados y aprobados. Confirmado: Next.js+Tailwind (no Webflow), GSAP 3.14.2 + ScrollTrigger + SplitText + ScrambleText + Flip, Lenis, ASCII en WebGL. Screenshots en `recon/reference/`.
+- [x] **Fase 1 — Scaffold y sistema de diseño.** Vite+TS strict, ESLint/Prettier, fuentes self-hosted (Inter/JetBrains Mono/Silkscreen, subset latin, 117 KB), tokens con tema dark+light, 10 secciones estáticas renderizadas desde `site.ts`, Lenis activo, `scripts/screenshots.ts` operativo. Build 53 kB gzip JS. 0 errores de consola.
+  - Pendiente para fases siguientes: reloj del footer (Fase 4), animación del preloader (Fase 2), retrato ASCII (Fase 3).
+- [x] **Fase 2 — Nav, menú, botones, preloader.** Preloader de acento con bloques + wipe horizontal (una vez por sesión); nav transparente que invierte color por sección, encoge a los 80 px y se oculta/reaparece por dirección de scroll; menú desplegable con scramble MENU↔CLOSE, swap JAVIER↔TRAPERO, Esc, foco atrapado y `lenis.stop()`; botones con slide vertical del label, swap del "+" con Flip y magnetismo acotado. Sin cursor custom. 32/32 comprobaciones en `check-phase2.ts`, 0 errores de consola. Bundle 70.4 kB gzip.
+  - Pendiente: entrada del hero solapada con la salida del preloader (necesita SplitText → Fase 4); el preloader ya expone `done` para engancharla.
+- [x] **Fase 3 — Retrato ASCII (Canvas 2D).** `AsciiPortrait.ts` + `charRamp.ts` completos: base en `--accent` con highlights en `--fg` por contraste local, shimmer del 3 % cada 120 ms (doble en highlights), puntero que aclara hacia blanco con glifos densos y ripple, reveal por scanline al salir el preloader, parallax, pausa fuera de viewport, y el **modo color por clic** (§6.3 punto 11) con acceso por teclado. Segunda instancia en el footer. Panel `?debug` con sliders y ms/frame reales. **1.2–2.2 ms de pintado** (presupuesto 4 ms). 13/13 en `check-phase3.ts`, 0 errores de consola. Bundle 75 kB gzip.
+- [ ] Fase 4 — Animaciones de scroll y secciones
+- [ ] Fase 5 — Responsive, accesibilidad, performance
+- [ ] Fase 6 — Deploy y README
+- [ ] Fase 7 (opcional) — Páginas de caso + transiciones
+- [ ] Fase 8 (opcional) — ASCII en WebGL
+
+## TODO_JAVIER
+
+### Resueltos (2026-09-02)
+
+- ✅ §6.3 actualizado por Javier: sujeto = jaguar, mapeo corregido (acento base / blanco highlight) y **punto 11 click-to-color**.
+- ✅ `public/img/portrait/portrait.png` en su sitio: fondo negro puro, orientado hacia la izquierda, buen contraste de bordes.
+- ⏳ Javier está rellenando los TODO de `site.ts` (email, redes, métricas, principios, FAQ, "How I work", nav.status) — llegan en paralelo, no bloquean.
+
+### Contenido pendiente en `site.ts` (se ve como `[TODO]` en el sitio)
+
+- `meta.name` (nombre completo), `meta.email`, `meta.url`
+- `nav.socials`: URLs de GitHub / LinkedIn / X
+- `stats.items`: 2 métricas (users reached, projects shipped) — la de "products co-founded" ya está en 02
+- `principles.items`: los 2 últimos de los 6 (el grid es 3×2)
+- `stack.groups`: 1 item de Hardware
+- `faq.items`: respuestas de las 3 primeras preguntas
+- `work.items`: URLs de Orael/ROAR/repo + 1–2 proyectos de mecatrónica
+- `contact.button.href`, `footer.legal`
+
+### Copy propuesto pendiente de tu visto bueno
+
+- `process.steps`: los 4 títulos y descripciones están marcados `PROPUESTA` en `site.ts`.
+- `nav.status`: "OPEN TO INTERNSHIPS & FREELANCE" — confirmar si es cierto antes de publicar.
+
+### Assets pendientes (§7)
+
+`public/img/`: foto de retrato (stats), media de los 4 pasos del proceso, covers de work, foto de contacto, `og.jpg`.
+Mientras tanto se ven placeholders rayados generados por CSS (nunca imágenes de terceros, §10.6).

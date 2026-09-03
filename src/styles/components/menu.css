@@ -1,0 +1,104 @@
+/* menu.css — panel desplegable bajo el nav (recon: NO es overlay fullscreen). Fase 1: estructura oculta. */
+
+@layer components {
+  /* Oscurece la página detrás del panel (observado en la referencia) */
+  .menu__backdrop {
+    position: fixed;
+    z-index: 30;
+    inset: 0;
+    background-color: rgb(0 0 0 / 55%);
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .menu {
+    position: fixed;
+    z-index: 40;
+    inset-block-start: 0;
+    inset-inline: 0;
+    max-height: 100svh;
+    padding: calc(var(--nav-h) + 2rem) var(--gutter) 3rem;
+    overflow-y: auto;
+    color: var(--fg);
+    background-color: var(--bg-panel);
+    /* Estado cerrado; GSAP anima este clip-path al abrir (§6.2) */
+    clip-path: inset(0 0 100% 0);
+  }
+
+  /* Cada línea recorta su enlace para el reveal con stagger */
+  .menu__line {
+    overflow: hidden;
+  }
+
+  .menu__inner {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1.2fr;
+    gap: clamp(2rem, 4vw, 4rem);
+    align-items: start;
+    max-width: 120rem;
+    margin-inline: auto;
+  }
+
+  .menu__links {
+    display: grid;
+    gap: 0.25rem;
+    list-style: none;
+  }
+
+  .menu__link {
+    display: inline-flex;
+    gap: 1.25rem;
+    align-items: center;
+    padding-block: 0.25rem;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .menu__link .bullet {
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  .menu__link:hover {
+    color: var(--accent);
+  }
+
+  .menu__link:hover .bullet {
+    opacity: 1;
+  }
+
+  .menu__col {
+    display: grid;
+    gap: 1.5rem;
+    align-content: start;
+  }
+
+  .menu__group {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .menu__cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .menu__card figure {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .menu__card .ph {
+    aspect-ratio: 1 / 1;
+  }
+
+  @media (width < 64rem) {
+    .menu__inner {
+      grid-template-columns: 1fr;
+    }
+
+    .menu__cards {
+      display: none;
+    }
+  }
+}
