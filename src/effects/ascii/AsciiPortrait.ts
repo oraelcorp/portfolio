@@ -50,6 +50,9 @@ const SHIMMER_RATE = 0.03;
 const FADE_DURATION = 0.9;
 /** Sobremuestreo del canvas intermedio donde se aplica el desenfoque. */
 const SMOOTH_SS = 2;
+/** Curva de alpha de las celdas base: alpha = ALPHA_FLOOR + ALPHA_RANGE · L. */
+const ALPHA_FLOOR = 0.22;
+const ALPHA_RANGE = 0.5;
 
 interface Bucket {
   style: string;
@@ -418,7 +421,10 @@ export class AsciiPortrait implements Module {
   private styleFor(i: number, l: number, mix: number): string {
     const isHi = this.highlight[i] === 1;
     const base = isHi ? this.fg : this.accent;
-    const alpha = isHi ? 0.9 + 0.1 * l : 0.35 + 0.55 * l;
+    // Curva de alpha de la base: el suelo bajó de 0.35 a 0.22 para acercarse a la delicadeza
+    // de la referencia (decisión de Javier). Los highlights NO se tocan: siguen a tope para
+    // que los bordes sigan destacando sobre una base ahora más tenue.
+    const alpha = isHi ? 0.9 + 0.1 * l : ALPHA_FLOOR + ALPHA_RANGE * l;
 
     if (mix <= 0) return this.rgba(base[0], base[1], base[2], alpha);
 

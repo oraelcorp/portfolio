@@ -65,18 +65,34 @@ const CELL_STATS = `(d, w, h, cellPx) => {
   return { filled: (inked / (cols * rows)) * 100, perPixel: inked ? acc / inked : 0, accent, white, cols, rows };
 }`;
 
+/**
+ * OJO — el alpha se pierde si se lee el canvas directamente. `getImageData` devuelve RGBA
+ * SIN premultiplicar: un glifo pintado con alpha 0.25 sigue devolviendo su RGB a valor pleno
+ * y el 0.25 vive en el canal A. Medir solo RGB equivale a tratar todo como opaco, y entonces
+ * la comparación con la referencia (un PNG ya compuesto sobre negro) no vale nada.
+ * Aquí se compone explícitamente sobre negro antes de medir, igual que hace el navegador.
+ */
 async function measureOurs(page: Page): Promise<Weight> {
   return page.evaluate(async (stats) => {
     const fn = eval(stats) as (d: Uint8ClampedArray, w: number, h: number, c: number) => Weight;
     const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii]');
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) throw new Error('sin canvas');
+    if (!canvas) throw new Error('sin canvas');
+
+    const flat = document.createElement('canvas');
+    flat.width = canvas.width;
+    flat.height = canvas.height;
+    const fctx = flat.getContext('2d', { willReadFrequently: true });
+    if (!fctx) throw new Error('sin contexto');
+
+    // Fondo negro real + el canvas encima: así el alpha queda aplicado en los RGB
+    fctx.fillStyle = '#141314';
+    fctx.fillRect(0, 0, flat.width, flat.height);
+    fctx.drawImage(canvas, 0, 0);
 
     const dpr = canvas.width / canvas.getBoundingClientRect().width;
-    // Se usa la celda EFECTIVA del motor, que tras el ajuste a píxel puede no ser la nominal
     const cellPx = 8 * dpr;
-    const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    return fn(d, canvas.width, canvas.height, cellPx);
+    const d = fctx.getImageData(0, 0, flat.width, flat.height).data;
+    return fn(d, flat.width, flat.height, cellPx);
   }, CELL_STATS);
 }
 
@@ -151,9 +167,8 @@ async function main(): Promise<void> {
 
     const ratio = ref.perPixel > 0 ? ours.perPixel / ref.perPixel : 0;
     console.log(`\n  ratio de peso: ×${ratio.toFixed(2)} respecto a la referencia`);
-    console.log('  de ese ratio, ×1.73 es inevitable: el verde #39FF6A tiene luminancia 202');
-    console.log('  frente a los 117 del naranja #FD551D. El resto viene de la curva de alpha.');
-    console.log(`  → exceso atribuible a la curva de alpha: ×${(ratio / 1.73).toFixed(2)}`);
+    console.log('  El verde #39FF6A tiene luminancia 202 frente a los 117 del naranja #FD551D,');
+    console.log('  pero nuestra curva de alpha (0.22 + 0.5·L) es más baja que la suya y lo compensa.');
 
     await browser.close();
   } finally {
