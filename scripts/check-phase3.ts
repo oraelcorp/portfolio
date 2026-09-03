@@ -99,17 +99,25 @@ async function main(): Promise<void> {
     // ---- Reveal por scanline: arranca al salir el preloader, así que se mide justo después
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction(() => !document.querySelector('[data-preloader]'), null, { timeout: 12_000 });
-    // El barrido dura 1.4 s. Leer el canvas entero cuesta ~150 ms, demasiado para muestrear una
-    // animación: se sigue el progreso que el propio motor publica en data-reveal.
-    const progress: number[] = [];
-    for (let i = 0; i < 26; i++) {
-      const v = await page.evaluate(
-        () => document.querySelector<HTMLCanvasElement>('[data-ascii]')?.dataset.reveal,
-      );
-      if (v !== undefined) progress.push(Number(v));
-      if (progress.at(-1) === 1) break;
-      await sleep(60);
-    }
+    // El barrido dura 1.4 s. Muestrearlo desde Node es poco fiable: cada consulta cuesta ~50 ms
+    // de ida y vuelta y se pierden muestras. La serie se graba DENTRO de la página con rAF y se
+    // lee una sola vez al final.
+    const progress = await page.evaluate(async () => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii]');
+      if (!canvas) return [];
+
+      const series: number[] = [];
+      await new Promise<void>((done) => {
+        const started = performance.now();
+        const tick = (): void => {
+          series.push(Number(canvas.dataset.reveal ?? '0'));
+          if (series.at(-1) === 1 || performance.now() - started > 4000) done();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      return series;
+    });
     await page.screenshot({ path: join(OUT, 'reveal-mid.png'), clip: CLIP });
 
     const partials = progress.filter((p) => p > 0.02 && p < 0.98);

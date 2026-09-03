@@ -2,6 +2,10 @@
 // Sujeto: el jaguar de Javier. Base en --accent, highlights en --fg, shimmer, puntero,
 // reveal por scanline, parallax y el modo color por clic (§6.3 punto 11).
 //
+// Tipografía (medida en scripts/diagnose-type.ts, comparada en screenshots/type/): el glifo se
+// dimensiona por el alto real de su tinta, la celda se alinea al píxel de dispositivo y NO se
+// estira en X. Las tres cosas juntas son lo que quita el aspecto "grueso y sucio".
+//
 // Presupuesto de 4 ms/frame (§8): repintar las ~6000 celdas cuesta ~11 ms, así que NUNCA se
 // repinta todo en un frame de animación. Cada tipo de cambio toca solo lo suyo:
 //   shimmer  → las ~180 celdas que cambiaron de glifo
@@ -33,7 +37,10 @@ export interface AsciiOptions {
   fontFamily?: string;
   /** Ajusta la celda a píxeles de dispositivo enteros: sin esto el texto sale borroso. */
   pixelSnap?: boolean;
-  /** Estira el glifo en X para llenar una celda cuadrada. Deforma los trazos verticales. */
+  /**
+   * Estira el glifo en X para llenar una celda cuadrada. Desactivado: deforma los trazos
+   * verticales sin tocar los horizontales y es lo que más ensuciaba el retrato.
+   */
   stretch?: boolean;
 }
 
@@ -146,7 +153,11 @@ export class AsciiPortrait implements Module {
       interactive: true,
       fontFamily: '"JetBrains Mono", ui-monospace, monospace',
       pixelSnap: true,
-      stretch: true,
+      // Sin estirar (decisión de Javier tras comparar en screenshots/type/): el estirado ×1.67
+      // engordaba los trazos verticales y era la causa principal del aspecto "grueso y sucio".
+      // La contrapartida: el glifo ocupa ~60 % del ancho, así que la celda es cuadrada como
+      // rejilla pero no como mancha de tinta.
+      stretch: false,
       ...rest,
       onModeChange: onModeChange ?? ((): void => {}),
     };
