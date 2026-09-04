@@ -144,7 +144,7 @@ function stats(): string {
     .map(
       (s) => `
       <div class="stats__card">
-        <p class="stats__value">${field(s.value)}</p>
+        <p class="stats__value" data-counter="${esc(s.value)}">${field(s.value)}</p>
         <p class="stats__label t-mono-sm"><i class="bullet"></i>${esc(s.label)}</p>
       </div>`,
     )
@@ -183,7 +183,14 @@ function process(): string {
         <p class="process__intro t-body-lg">${esc(site.process.intro)}</p>
         <ol class="process__steps">${steps}</ol>
       </div>
-      ${placeholder('process media', 'process__media')}
+      <div class="process__media" data-process-media>
+        ${site.process.steps
+          .map(
+            (s, i) =>
+              `<div class="process__media-item" data-process-media-item data-active="${i === 0}">${placeholder(`step ${s.n}`)}</div>`,
+          )
+          .join('')}
+      </div>
     </div>
   </section>`;
 }
@@ -316,7 +323,7 @@ function contact(): string {
   const mail = isTodo(site.contact.email) ? '#' : `mailto:${site.contact.email}`;
 
   return `
-  <section class="section container" data-section="contact" data-theme="light" id="contact">
+  <section class="section container" data-section="contact" data-theme="light" id="contact" data-contact>
     <div class="contact__body">
       <div>
         <h2 class="contact__title t-h2" data-split>${title}</h2>

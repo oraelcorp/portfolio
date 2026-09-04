@@ -15,6 +15,7 @@
 @import './components/hero.css';
 @import './components/ascii-debug.css';
 @import './components/grid-overlay.css';
+@import './components/counter.css';
 @import './components/stats.css';
 @import './components/process.css';
 @import './components/work.css';

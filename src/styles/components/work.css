@@ -69,11 +69,13 @@
     block-size: 100%;
   }
 
-  /* Pill "VIEW PROJECT" — en Fase 4 seguirá al cursor */
+  /* Pill "VIEW PROJECT": el JS la coloca bajo el cursor con quickTo (§6.7) */
   .work__pill {
     position: absolute;
-    top: 1.5rem;
-    left: 1.5rem;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    will-change: transform;
   }
 
   .work__meta {

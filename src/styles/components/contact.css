@@ -1,6 +1,33 @@
 /* contact.css — sección clara con botón invertido a oscuro (recon §7). Fase 1. */
 
 @layer components {
+  /* Halo del acento al 6 % que sigue al puntero (§6.12). --halo lo sube y baja el JS. */
+  [data-contact] {
+    position: relative;
+    --mx: 50;
+    --my: 50;
+    --halo: 0;
+  }
+
+  [data-contact]::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(
+      36rem circle at calc(var(--mx) * 1%) calc(var(--my) * 1%),
+      color-mix(in srgb, var(--accent) 6%, transparent),
+      transparent 70%
+    );
+    opacity: var(--halo);
+    pointer-events: none;
+  }
+
+  [data-contact] > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .contact__body {
     grid-column: 1 / -1;
     display: grid;

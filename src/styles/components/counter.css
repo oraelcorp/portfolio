@@ -1,0 +1,25 @@
+/* counter.css — cifras que ruedan como un odómetro (recon §2). Fase 4.
+   Cada dígito es una tira 0–9 dentro de una ranura que la recorta. */
+
+@layer components {
+  .counter {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .counter__slot {
+    display: block;
+    height: 1em;
+    overflow: hidden;
+  }
+
+  .counter__strip {
+    display: block;
+    white-space: pre;
+    will-change: transform;
+  }
+
+  .counter__fixed {
+    display: block;
+  }
+}

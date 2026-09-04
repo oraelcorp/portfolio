@@ -147,7 +147,8 @@ async function testSections(browser: Browser): Promise<void> {
     };
     return {
       stats: opacity('[data-section="stats"] .stats > *'),
-      process: opacity('[data-section="process"] [data-step]'),
+      // En proceso los inactivos se atenúan A PROPÓSITO (scrollytelling): se mira el activo
+      process: opacity('[data-step][data-active="true"]'),
       work: opacity('[data-section="work"] [data-work-preview]'),
       principles: opacity('[data-section="principles"] .principles__item'),
       stack: opacity('[data-section="stack"] .stack__group'),
@@ -252,6 +253,129 @@ async function testFaqAndFooter(browser: Browser): Promise<void> {
   );
   check('la tecla C cambia el acento', accentBefore !== accentAfter, `${accentBefore} → ${accentAfter}`);
   await page.screenshot({ path: join(OUT, 'accent-changed.png') });
+
+  await ctx.close();
+}
+
+async function testSecondHalf(browser: Browser): Promise<void> {
+  console.log('\n== Proceso, odómetros, work, contacto y hovers');
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  watch(page, 'segunda-mitad');
+
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.waitForFunction(() => !document.querySelector('[data-preloader]'), null, { timeout: 15_000 });
+  await sleep(700);
+
+  // --- Odómetros
+  await scrollTo(page, 'stats');
+  await sleep(1800);
+  const counters = await page.evaluate(() => {
+    const strips = [...document.querySelectorAll<HTMLElement>('.counter__strip')];
+    return {
+      slots: strips.length,
+      moved: strips.filter((s) => new DOMMatrixReadOnly(getComputedStyle(s).transform).m42 < -5).length,
+      text: [...document.querySelectorAll<HTMLElement>('[data-counter]')].map((c) =>
+        (c.textContent ?? '').replace(/\s+/g, ''),
+      ),
+    };
+  });
+  check(
+    'las cifras ruedan como odómetro',
+    counters.slots > 0 && counters.moved === counters.slots,
+    `${counters.moved}/${counters.slots} columnas rodadas`,
+  );
+  await page.screenshot({ path: join(OUT, 'stats-counters.png') });
+
+  // --- Proceso: al pasar por cada paso, cambia el activo y la media
+  await scrollTo(page, 'process');
+  const firstActive = await page.evaluate(() => ({
+    step: document.querySelector('[data-step][data-active="true"]')?.textContent?.slice(0, 12) ?? '',
+    media: [...document.querySelectorAll('[data-process-media-item]')].findIndex(
+      (m) => (m as HTMLElement).dataset.active === 'true',
+    ),
+  }));
+
+  await page.evaluate(() => {
+    const steps = document.querySelectorAll('[data-step]');
+    steps[steps.length - 1]?.scrollIntoView({ block: 'center' });
+  });
+  await sleep(1200);
+
+  const lastActive = await page.evaluate(() => ({
+    step: document.querySelector('[data-step][data-active="true"]')?.textContent?.slice(0, 12) ?? '',
+    media: [...document.querySelectorAll('[data-process-media-item]')].findIndex(
+      (m) => (m as HTMLElement).dataset.active === 'true',
+    ),
+    dimmed: [...document.querySelectorAll<HTMLElement>('[data-step]')].filter(
+      (s) => Number(getComputedStyle(s).opacity) < 0.6,
+    ).length,
+  }));
+
+  check(
+    'el paso activo avanza con el scroll',
+    firstActive.media !== lastActive.media && lastActive.media >= 0,
+    `media ${firstActive.media} → ${lastActive.media}`,
+  );
+  check('los pasos inactivos se atenúan', lastActive.dimmed >= 2, `${lastActive.dimmed} atenuados`);
+  await page.screenshot({ path: join(OUT, 'process-active.png') });
+
+  // --- Work: la pestaña sigue al proyecto visible y la pill aparece bajo el cursor
+  await scrollTo(page, 'work');
+  const figure = page.locator('.work__figure').first();
+  await figure.hover();
+  await sleep(600);
+  const pill = await page.evaluate(() => {
+    const p = document.querySelector<HTMLElement>('.work__pill');
+    if (!p) return null;
+    const m = new DOMMatrixReadOnly(getComputedStyle(p).transform);
+    return { opacity: Number(getComputedStyle(p).opacity), x: Math.round(m.m41), y: Math.round(m.m42) };
+  });
+  check(
+    'la pill VIEW PROJECT aparece bajo el cursor',
+    !!pill && pill.opacity > 0.9 && Math.abs(pill.x) > 10,
+    JSON.stringify(pill),
+  );
+  await page.screenshot({ path: join(OUT, 'work-pill.png') });
+
+  const activeTabs = await page.evaluate(
+    () => document.querySelectorAll('[data-work-tab][data-active="true"]').length,
+  );
+  check('solo una pestaña de work activa', activeTabs === 1, `${activeTabs} activas`);
+
+  // --- Contacto: el halo aparece al entrar el puntero
+  await scrollTo(page, 'contact');
+  await page.mouse.move(400, 500, { steps: 10 });
+  await page.mouse.move(900, 520, { steps: 15 });
+  await sleep(700);
+  const halo = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('[data-contact]');
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    return { halo: cs.getPropertyValue('--halo').trim(), mx: cs.getPropertyValue('--mx').trim() };
+  });
+  check(
+    'el halo del contacto se enciende y sigue al puntero',
+    Number(halo?.halo) > 0.5,
+    JSON.stringify(halo),
+  );
+  await page.screenshot({ path: join(OUT, 'contact-halo.png') });
+
+  // --- Hover con scramble en principios
+  await scrollTo(page, 'principles');
+  const title = page.locator('.principles__title').first();
+  const before = await title.textContent();
+  await title.hover();
+  await sleep(180);
+  const during = await title.textContent();
+  await sleep(900);
+  const after = await title.textContent();
+  check(
+    'el hover scramblea el título y lo restituye',
+    before !== during && after === before,
+    `"${before?.trim()}" → "${during?.trim()}" → "${after?.trim()}"`,
+  );
+  await page.screenshot({ path: join(OUT, 'principles-hover.png') });
 
   await ctx.close();
 }
@@ -371,6 +495,7 @@ async function main(): Promise<void> {
     await testSections(browser);
     await testMarquee(browser);
     await testFaqAndFooter(browser);
+    await testSecondHalf(browser);
     await testScrollJank(browser);
     await testReducedMotion(browser);
 

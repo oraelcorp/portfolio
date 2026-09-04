@@ -8,10 +8,15 @@ import { initNav } from './components/Nav.ts';
 import { initMenu } from './components/Menu.ts';
 import { initMagnetic } from './components/MagneticButton.ts';
 import { initMarquee } from './components/Marquee.ts';
+import { initCounters } from './components/Counter.ts';
 import { initAscii } from './sections/hero.ts';
 import { initHeroIntro } from './sections/heroIntro.ts';
 import { initReveals } from './sections/reveals.ts';
+import { initProcess } from './sections/process.ts';
+import { initWork } from './sections/work.ts';
 import { initFaq } from './sections/faq.ts';
+import { initContact } from './sections/contact.ts';
+import { initHovers } from './sections/hovers.ts';
 import { initFooter } from './sections/footer.ts';
 import type { Module } from './core/utils.ts';
 
@@ -55,7 +60,12 @@ function boot(): void {
     initHeroIntro(preloader.exiting),
     initReveals(),
     initMarquee(),
+    initCounters(),
+    initProcess(),
+    initWork(),
     initFaq(),
+    initContact(),
+    initHovers(),
     initFooter(),
   );
 }

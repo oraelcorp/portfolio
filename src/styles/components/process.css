@@ -54,10 +54,25 @@
     color: var(--on-surface-muted);
   }
 
+  /* Contenedor sticky con una media por paso, apiladas para el crossfade */
   .process__media {
     position: sticky;
     top: calc(var(--nav-h) + 2rem);
     aspect-ratio: 4 / 5;
+  }
+
+  .process__media-item {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+
+  .process__media-item[data-active='true'] {
+    opacity: 1;
+  }
+
+  .process__media-item .ph {
+    block-size: 100%;
   }
 
   @media (width < 64rem) {
