@@ -356,6 +356,13 @@ Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `
 
 **Bonus Fase 8 (opcional):** versión WebGL con Three.js (`ShaderMaterial` que muestrea el vídeo y un atlas de caracteres, igual que el sitio de referencia — confirmado en Fase 0 que su efecto real es WebGL, no Canvas 2D), con el toggle ascii↔color como uniform del shader en vez de crossfade por celda en CPU. Solo tras validar la versión Canvas 2D.
 
+13. **Sangría de color por hover — diferenciador de Javier.** Medido en la referencia (`scripts/recon-ascii-hover.ts`): su puntero **no revela color**, la saturación en la zona del cursor *baja* de 0.667 a 0.600 — es un aclarado hacia blanco, que desatura. Aquí en cambio el color se **derrama** desde la celda que toca el cursor y **respeta la forma del sujeto**.
+    - **Modelo:** conectividad **binaria** (basta con tocar una celda ya teñida) por **tolerancia tonal** respecto a la celda semilla, más un freno suave en el salto local y una caída lineal con la distancia. Un modelo multiplicativo clásico **no sirve aquí**: en un retrato de pelaje el contraste entre celdas vecinas es de 0.3 a 0.6 en todas las direcciones, así que la cadena decae geométricamente y el derrame moría a 3–4 celdas del cursor por mucho que se bajara la constante.
+    - **Medido en el nuestro:** alcance de **7 a 21 celdas** según la dirección (un factor 3 — la firma de seguir al sujeto en vez de dibujar un disco), el tono se aleja del acento un **13 %** en el anillo central decayendo a 0 en 60 px, y se tiñe solo el 15 % del área del disco.
+    - **El círculo blanco uniforme del puntero desaparece.** Se conserva el empuje de luminancia y la densificación del glifo, pero el color ya sale de la mezcla de la sangría: pintar `--fg` a pelo tapaba justo el centro del derrame (medido: la saturación *bajaba* un 23.5 % donde más debía subir).
+    - **Coste:** máximo 1.1 ms/frame, dentro del presupuesto de 4 ms de §8. La difusión recorre solo una caja acotada alrededor del puntero y se repintan únicamente las celdas cuya mezcla cambió.
+    - **Contrapartida honesta:** el color que aparece es el real de la foto, que en el jaguar es pardo apagado más que ámbar vivo. Hacerlo vibrante depende de la **paleta multi-tono aparcada** por Javier (§6.3 punto 11 / Fase 8).
+
 ### 6.4 Hero — texto y botones
 
 - Headline: `SplitReveal` con `SplitText` (`type: "lines,words"`, `mask: "lines"` disponible en 3.13 — verificar en docs; si no, envolver cada línea en `overflow:hidden` manualmente). Palabras entran `yPercent: 110 → 0`, `duration: 1.1`, `ease: main`, `stagger: 0.04`. Empieza 0.4 s antes de que el preloader termine de salir.

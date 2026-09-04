@@ -66,6 +66,30 @@ const REVEAL_DURATION = 3.2;
  * alarga el goteo. Con power1.out la cresta avanza de forma legible durante todo el barrido.
  */
 const REVEAL_EASE = 'power1.out';
+/**
+ * Sangría de color por hover (§6.3 punto 13). No es un círculo: el color se propaga celda a
+ * celda desde donde toca el cursor y **se frena en los bordes del sujeto**, porque la
+ * conductancia entre dos celdas vecinas cae con su diferencia de luminancia. Medido en la
+ * referencia: allí el puntero NO revela color (la saturación BAJA de 0.667 a 0.600 al
+ * acercarse, es un aclarado hacia blanco). Esto es un diferenciador pedido por Javier.
+ */
+const BLEED_CELLS = 26; // alcance máximo, en celdas: acota el coste por frame
+/**
+ * Dos frenos, no uno. El gradiente entre celdas VECINAS es demasiado ruidoso en un retrato de
+ * pelaje para servir de señal de borde por sí solo: medido, las 6 direcciones desde un punto
+ * cualquiera dan contrastes de 0.3 a 0.6, así que con un único factor agresivo la sangría
+ * moría a 1–3 celdas del cursor en todas partes.
+ *   BLEED_EDGE — frena en el salto local, para no atravesar una silueta.
+ *   BLEED_TONE — mantiene el derrame dentro de tonos parecidos al de la celda semilla, que es
+ *                lo que hace que llene el pelaje y se pare en el fondo o en un brillo.
+ */
+const BLEED_EDGE = 1.4;
+const BLEED_TONE = 3.2;
+const BLEED_RISE = 3.4; // velocidad de propagación, por segundo
+const BLEED_FALL = 4.5; // velocidad de repliegue al salir el puntero
+/** Cambio mínimo de sangría para molestarse en repintar una celda. */
+const BLEED_EPS = 0.02;
+
 /** Curva de alpha de las celdas base: alpha = ALPHA_FLOOR + ALPHA_RANGE · L. */
 const ALPHA_FLOOR = 0.22;
 const ALPHA_RANGE = 0.5;
@@ -114,6 +138,14 @@ export class AsciiPortrait implements Module {
   private cellY = new Int16Array(0);
   /** Distancia de cada celda al origen de la onda, precalculada en el muestreo. */
   private cellDist = new Float32Array(0);
+  /** Cuánto color se ha revelado en cada celda, 0..1. */
+  private bleed = new Float32Array(0);
+  private bleedNext = new Float32Array(0);
+  /** Celdas cuya sangría cambió este frame y hay que repintar. */
+  private bleedDirty: number[] = [];
+  private bleedActive = false;
+  /** Luminancia de la celda donde nació el derrame: define qué tonos son "parecidos". */
+  private bleedSeed = 0;
   private chars: string[] = [];
   private buckets: Bucket[] = [];
 
@@ -129,6 +161,7 @@ export class AsciiPortrait implements Module {
   private targetY = -999;
   private hasPointer = false;
   private lastShimmer = 0;
+  private lastBleed = 0;
   private shimmerDirty: number[] = [];
   private running = false;
   private visible = true;
@@ -395,6 +428,8 @@ export class AsciiPortrait implements Module {
     this.cellX = new Int16Array(total);
     this.cellY = new Int16Array(total);
     this.cellDist = new Float32Array(total);
+    this.bleed = new Float32Array(total);
+    this.bleedNext = new Float32Array(total);
     this.chars = new Array<string>(total);
 
     for (let i = 0; i < total; i++) {
@@ -461,7 +496,7 @@ export class AsciiPortrait implements Module {
       const l = this.luma[i] ?? 0;
       if (l < 0.12) continue;
 
-      const style = this.styleFor(i, l, mix);
+      const style = this.styleFor(i, l, Math.max(mix, this.bleed[i] ?? 0));
       let list = map.get(style);
       if (!list) {
         list = [];
@@ -569,7 +604,7 @@ export class AsciiPortrait implements Module {
         ctx.fillStyle = this.rgba(this.fg[0], this.fg[1], this.fg[2], 0.35 + 0.65 * crest);
         ctx.fillText(denseChar(lifted, i, this.salt[i] ?? 0), px, py);
       } else {
-        ctx.fillStyle = this.styleFor(i, l, this.colorMix);
+        ctx.fillStyle = this.styleFor(i, l, this.mixFor(i));
         ctx.fillText(this.chars[i] ?? '', px, py);
       }
     }
@@ -598,9 +633,119 @@ export class AsciiPortrait implements Module {
       const l = this.luma[i] ?? 0;
       if (l < 0.12) continue;
 
-      ctx.fillStyle = this.styleFor(i, l, this.colorMix);
+      ctx.fillStyle = this.styleFor(i, l, this.mixFor(i));
       ctx.fillText(this.chars[i] ?? '', px, py);
     }
+  }
+
+  /**
+   * Un paso de la sangría de color. La propagación es una difusión sobre la rejilla de celdas
+   * cuya CONDUCTANCIA entre vecinas cae exponencialmente con su diferencia de luminancia:
+   * donde hay un borde del sujeto, |ΔL| es grande, la conductancia tiende a 0 y el color se
+   * queda de ese lado. Eso es lo que hace que se derrame siguiendo la forma del jaguar en vez
+   * de dibujar un disco.
+   *
+   * Se recorre solo la caja alrededor del puntero (BLEED_CELLS de radio), así el coste está
+   * acotado y no depende del tamaño del retrato. Devuelve true si algo cambió.
+   */
+  private stepBleed(dt: number): boolean {
+    const cols = this.cols;
+    const rows = this.rows;
+    const on = this.hasPointer && this.pointerX > -100;
+
+    // Sin puntero y sin nada revelado no hay trabajo que hacer.
+    if (!on && !this.bleedActive) return false;
+
+    const cx = Math.round(this.pointerX);
+    const cy = Math.round(this.pointerY);
+    const R = BLEED_CELLS;
+    const minX = on ? Math.max(0, cx - R) : 0;
+    const maxX = on ? Math.min(cols - 1, cx + R) : cols - 1;
+    const minY = on ? Math.max(0, cy - R) : 0;
+    const maxY = on ? Math.min(rows - 1, cy + R) : rows - 1;
+
+    // Tono de la celda semilla: se refresca mientras el puntero está encima.
+    if (on) {
+      const si = Math.min(rows - 1, Math.max(0, cy)) * cols + Math.min(cols - 1, Math.max(0, cx));
+      this.bleedSeed = this.luma[si] ?? 0;
+    }
+
+    const rise = 1 - Math.exp(-BLEED_RISE * dt);
+    const fall = 1 - Math.exp(-BLEED_FALL * dt);
+    this.bleedDirty.length = 0;
+    let vivo = false;
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const i = y * cols + x;
+        const cur = this.bleed[i] ?? 0;
+
+        let objetivo = 0;
+        if (on) {
+          const d = Math.hypot(x - cx, y - cy);
+          if (d <= 1.5) {
+            objetivo = 1; // la celda bajo el cursor es la fuente, y marca el tono de referencia
+          } else if (d <= R) {
+            // Lo que llega de las vecinas, atenuado por el borde que haya entre medias.
+            const l = this.luma[i] ?? 0;
+            // Parecido al tono de donde nació el derrame: es lo que lo mantiene dentro del
+            // pelaje y lo para en el fondo o en un brillo. NO se compone paso a paso.
+            const tono = Math.exp(-BLEED_TONE * Math.abs(l - this.bleedSeed));
+
+            // Conectividad BINARIA: basta con tocar una celda ya teñida. Multiplicar por el
+            // valor del vecino hacía que la cadena decayera geométricamente y el derrame
+            // moría a 3-4 celdas del cursor por mucho que se bajara la constante — medido.
+            let conectado = 0;
+            let saltoLocal = 1;
+            for (const [ox, oy] of [
+              [-1, 0],
+              [1, 0],
+              [0, -1],
+              [0, 1],
+            ] as const) {
+              const nx = x + ox;
+              const ny = y + oy;
+              if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+              const j = ny * cols + nx;
+              if ((this.bleed[j] ?? 0) > 0.06) {
+                conectado = 1;
+                saltoLocal = Math.min(saltoLocal, Math.abs(l - (this.luma[j] ?? 0)));
+              }
+            }
+            if (conectado === 0) continue;
+
+            // Freno suave en el salto local, para no atravesar una silueta de golpe.
+            const borde = Math.exp(-BLEED_EDGE * saltoLocal);
+            objetivo = tono * borde * (1 - d / R);
+          }
+        }
+
+        let next = cur + (objetivo - cur) * (objetivo > cur ? rise : fall);
+        // El repliegue es exponencial y nunca llega a 0 por sí solo: se corta el rabo, o
+        // `bleedActive` se quedaba en true para siempre tras salir el puntero.
+        if (next < 0.02 && objetivo === 0) next = 0;
+        this.bleedNext[i] = next;
+        if (next > 0) vivo = true;
+        if (Math.abs(next - cur) > BLEED_EPS) this.bleedDirty.push(i);
+      }
+    }
+
+    // Volcado del buffer: solo la caja recorrida.
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const i = y * cols + x;
+        this.bleed[i] = this.bleedNext[i] ?? 0;
+      }
+    }
+
+    this.bleedActive = vivo;
+    return this.bleedDirty.length > 0;
+  }
+
+  /** Mezcla de color efectiva de una celda: el modo clic y la sangría del hover, lo que mande. */
+  private mixFor(i: number): number {
+    const b = this.bleed[i] ?? 0;
+    return b > this.colorMix ? b : this.colorMix;
   }
 
   /** Repinta el rectángulo que cubre la posición anterior y la actual del puntero. */
@@ -638,15 +783,18 @@ export class AsciiPortrait implements Module {
         const dist = pointerOn ? Math.hypot(x - px, y - py) : Infinity;
 
         if (dist <= radius) {
-          // §6.3 punto 8: se eleva la luminancia, se aclara hacia --fg y se densifica el glifo
+          // Se eleva la luminancia y se densifica el glifo, pero el COLOR ya no es blanco
+          // plano: sale de `styleFor` con la mezcla de la sangría. Pintar aquí `--fg` a pelo
+          // tapaba justo el centro del derrame — medido: la saturación BAJABA un 23.5 %
+          // donde más debía subir. El círculo uniforme es lo que la sangría viene a sustituir.
           const falloff = 1 - dist / radius;
-          const lifted = clamp(l + 0.35 * falloff, 0, 1);
-          ctx.fillStyle = this.rgba(this.fg[0], this.fg[1], this.fg[2], 0.4 + 0.6 * falloff);
+          const lifted = clamp(l + 0.18 * falloff, 0, 1);
+          ctx.fillStyle = this.styleFor(i, lifted, this.mixFor(i));
           // El ripple va en el espacio ya estirado, por eso se divide por el factor
           const dx = (Math.sin((y + this.lastShimmer * 0.002) * 1.7) * 2 * falloff * stepX) / this.cw;
           ctx.fillText(denseChar(lifted, i, this.salt[i] ?? 0), x * stepX + dx, y * cellH);
         } else {
-          ctx.fillStyle = this.styleFor(i, l, this.colorMix);
+          ctx.fillStyle = this.styleFor(i, l, this.mixFor(i));
           ctx.fillText(this.chars[i] ?? '', x * stepX, y * cellH);
         }
       }
@@ -854,6 +1002,17 @@ export class AsciiPortrait implements Module {
     if (pointerMoved) {
       this.paintPointerRegion(prevX, prevY);
       painted = true;
+    }
+
+    // 4) Sangría de color: solo las celdas cuya mezcla cambió lo suficiente. La difusión
+    //    recorre una caja acotada; el repintado, únicamente su frente de avance.
+    if (!this.reduced && this.opts.interactive) {
+      const dt = Math.min(0.05, (started - this.lastBleed) / 1000 || 0.016);
+      this.lastBleed = started;
+      if (this.stepBleed(dt)) {
+        this.paintCells(this.bleedDirty);
+        painted = true;
+      }
     }
 
     this.frameMs = painted ? performance.now() - started : 0;
