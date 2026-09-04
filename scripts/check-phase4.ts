@@ -325,15 +325,20 @@ async function testSecondHalf(browser: Browser): Promise<void> {
   const figure = page.locator('.work__figure').first();
   await figure.hover();
   await sleep(600);
+  // La posición vive en el SEGUIDOR, no en la pill: la pill solo lleva opacidad, escala y
+  // giro. Mirar su matriz aquí solo devolvía el translateX(-50%) y el check pasaba de rebote.
+  const box = await figure.boundingBox();
   const pill = await page.evaluate(() => {
-    const p = document.querySelector<HTMLElement>('.work__pill');
-    if (!p) return null;
-    const m = new DOMMatrixReadOnly(getComputedStyle(p).transform);
+    const fol = document.querySelector<HTMLElement>('[data-work-follower]');
+    const p = fol?.querySelector<HTMLElement>('.work__pill');
+    if (!fol || !p) return null;
+    const m = new DOMMatrixReadOnly(getComputedStyle(fol).transform);
     return { opacity: Number(getComputedStyle(p).opacity), x: Math.round(m.m41), y: Math.round(m.m42) };
   });
+  const centre = box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
   check(
-    'la pill VIEW PROJECT aparece bajo el cursor',
-    !!pill && pill.opacity > 0.9 && Math.abs(pill.x) > 10,
+    'la pill VIEW PROJECT sigue al cursor dentro de la figura',
+    !!pill && !!centre && pill.opacity > 0.9 && Math.hypot(pill.x - centre.x, pill.y - centre.y) < 60,
     JSON.stringify(pill),
   );
   await page.screenshot({ path: join(OUT, 'work-pill.png') });

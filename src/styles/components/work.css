@@ -40,12 +40,40 @@
     flex: none;
   }
 
-  .work__item .bullet {
-    opacity: 0;
+  /* El bullet no vive en cada item: hay uno solo que cae de un proyecto al siguiente.
+     Cada item deja este hueco reservado para que el layout no baile. */
+  .work__list-wrap {
+    position: relative;
   }
 
-  .work__item[data-active='true'] .bullet {
-    opacity: 1;
+  .work__slot {
+    display: inline-block;
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+
+  .work__marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: var(--accent-text);
+    will-change: transform;
+  }
+
+  /* Sin JS no hay marcador que colocar: se pinta el hueco del activo y ya. */
+  .work__marker:not([data-placed]) {
+    display: none;
+  }
+
+  .work__item[data-active='true'] .work__slot {
+    background-color: var(--accent-text);
+  }
+
+  .work__marker[data-placed] ~ .work__list .work__item .work__slot {
+    background-color: transparent;
   }
 
   .work__previews {
@@ -69,13 +97,31 @@
     block-size: 100%;
   }
 
-  /* Pill "VIEW PROJECT": el JS la coloca bajo el cursor con quickTo (§6.7) */
-  .work__pill {
-    position: absolute;
+  /* Pill "VIEW PROJECT". Medido en la referencia: un ÚNICO seguidor `fixed` en coordenadas
+     de viewport del que cuelga el cartel 32 px por encima del cursor, pivotando abajo (§6.7).
+     Estar fuera de la figura es lo que permite que acompañe al cursor desde fuera y no se
+     quede pegado al borde al salir. */
+  .work__follower {
+    position: fixed;
     top: 0;
     left: 0;
+    z-index: 40;
     pointer-events: none;
     will-change: transform;
+  }
+
+  .work__pill {
+    position: absolute;
+    bottom: 2rem;
+    left: 0;
+    /* El pivote abajo es lo que hace que el cartel se balancee como colgado del cursor */
+    transform-origin: bottom center;
+    will-change: transform, opacity;
+  }
+
+  /* Estado de partida: el JS lo toma desde aquí, y sin JS no se ve nunca */
+  .work__follower:not([data-ready]) {
+    display: none;
   }
 
   .work__meta {

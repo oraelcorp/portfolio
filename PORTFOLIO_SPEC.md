@@ -379,7 +379,12 @@ Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `
 
 - Título "Selected work" en `--fs-h2` con `SplitReveal` disparado por scroll (`start: "top 80%"`).
 - **Showcase sticky:** columna de pestañas (una por proyecto, con índice mono `01` y bullet cuadrado del acento en la activa) junto a una media grande. Al scrollear, la pestaña activa avanza sola y la media hace crossfade. Cada proyecto lleva `meta` en mono estilo `[SAAS] — [AI]` y su año.
-- **Pill "VIEW PROJECT"** sobre la media, persiguiendo al cursor con `gsap.quickTo`. Sustituye al cursor custom del spec original.
+- **Marcador de las pestañas — diferenciador de Javier.** Medido en la referencia: hay **un solo marcador** que **salta** entre posiciones (462 → 542 → 622 px, sin animación). Aquí en cambio **cae** al proyecto siguiente: un único elemento posicionado sobre la lista, con duración proporcional a `√altura` como un cuerpo cayendo, `bounce.out` al bajar y `back.out` al subir. Cada item reserva su hueco con `.work__slot` para que el layout no baile, y sin JS ese hueco pinta el activo.
+- **Pill "VIEW PROJECT"**, MEDIDA en la referencia (`scripts/recon-work.ts` → `recon/work-behavior.json`). No es un elemento dentro de cada figura: es **un único seguidor `position: fixed`** en coordenadas de viewport, `pointer-events: none`, que **no se desmonta al salir** de la media. De él cuelga el cartel, 32 px por encima del cursor y centrado, con `transform-origin: bottom` — como un letrero colgado.
+  - **Retardo del seguimiento:** mediana 15.8 px, p95 80.9 px (medido con el cursor dentro). Se reproduce con `gsap.quickTo` a 0.32 s y `power2`; con `power3` a 0.5 s salía el doble de flojo.
+  - **Balanceo:** el cartel gira **0.0995° por cada píxel de desfase horizontal** respecto al cursor (ajuste por mínimos cuadrados, RMS 1.76°), con un máximo observado de 14.1°. Se acota a 16°.
+  - **Separación de responsabilidades obligatoria:** la posición vive en el seguidor y la opacidad/escala/giro en el cartel. Mezclarlas fue la causa del bug en el que la pill se quedaba pegada al borde: los tweens de opacidad con `overwrite: true` mataban los `quickTo` de posición.
+  - **Diferenciador de Javier:** la pill se hace visible progresivamente en un margen de 140 px alrededor de la figura, de modo que acompaña al cursor desde fuera y entra ya en marcha en vez de aparecer en el borde. La referencia la monta al entrar.
 - Móvil: cards apiladas, sin sticky ni pill.
 - Entrada: filas con `y: 40` + opacity, stagger 0.1, `once: true`.
 

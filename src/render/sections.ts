@@ -196,11 +196,13 @@ function process(): string {
 }
 
 function work(): string {
+  // El bullet ya no vive dentro de cada item: hay UNO solo que cae de un proyecto al
+  // siguiente (§6.7). Cada item deja su hueco reservado para que no baile el layout.
   const list = site.work.items
     .map(
       (w, i) => `
       <li class="work__item" data-work-tab data-active="${i === 0}">
-        <i class="bullet"></i>
+        <i class="work__slot" aria-hidden="true"></i>
         ${placeholder(w.title, 'work__thumb')}
         <span class="t-mono-sm">${esc(w.title)}</span>
       </li>`,
@@ -213,7 +215,6 @@ function work(): string {
       <article class="work__preview" data-work-preview>
         <a class="work__figure" href="${href(w.href)}" aria-label="${esc(w.title)}">
           ${placeholder(`${w.title} cover`)}
-          <span class="work__pill btn">View project</span>
         </a>
         <div class="work__meta">
           <h3 class="t-h3">${esc(w.title)}</h3>
@@ -231,9 +232,18 @@ function work(): string {
         <h2 class="t-h2">${esc(site.work.heading)}</h2>
         <p class="work__intro t-body">${esc(site.work.intro)}</p>
         <a class="btn-text t-mono" href="${href(site.work.viewAll.href)}">${esc(site.work.viewAll.label)}</a>
-        <ul class="work__list" role="list">${list}</ul>
+        <div class="work__list-wrap">
+          <i class="work__marker" data-work-marker aria-hidden="true"></i>
+          <ul class="work__list" role="list">${list}</ul>
+        </div>
       </div>
       <div class="work__previews">${previews}</div>
+    </div>
+
+    <!-- Un solo seguidor para toda la sección, en coordenadas de viewport: así la pill puede
+         acompañar al cursor desde fuera del recuadro y entrar con él (§6.7). -->
+    <div class="work__follower" data-work-follower aria-hidden="true">
+      <span class="work__pill btn">View project</span>
     </div>
   </section>`;
 }

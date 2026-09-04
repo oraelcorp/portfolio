@@ -31,6 +31,9 @@ Hallazgos de la Fase 0 que **corrigen** el spec: ./recon/sections.md y ./recon/d
 - `node scripts/check-preloader.ts` — mide NUESTRO preloader desde dentro de la página (geometría, vuelcos, label, destello inicial)
 - `node scripts/capture-preloader.ts` — tira del preloader propio, etiquetada por ángulo real y no por reloj
 - `node scripts/compare-reveal.ts` — compara duraciones/curvas de la onda del retrato y mide cuánto dura la cresta en pantalla
+- `node scripts/recon-work.ts` — mide la pill y el marcador de pestañas de la referencia (retardo, balanceo, entrada)
+- `node scripts/check-work.ts` — suite del item 2 (9): pill desde fuera, sin pegarse al borde, marcador con rebote
+- `node scripts/capture-work.ts` — tiras del viaje de la pill y de la caída del marcador
 
 **Los scripts levantan el preview con `scripts/lib/preview.ts`, nunca con `spawn('npx', …, { shell: true })`:**
 en Windows eso deja el servidor huérfano y basta con unos cuantos para falsear las mediciones de rendimiento.
@@ -99,6 +102,9 @@ Display lh 1.1 / ls −0.035em · H2 peso 500 ls −0.05em · **mono con trackin
 - **[2026-09-03] El overlay del preloader se sirve visible en el HTML · Motivo:** con `hidden` no aparecía hasta que corría el módulo, y eso dejaba **~900 ms de pantalla en blanco** antes del acento (medido en `scripts/check-preloader.ts`). Ahora va visible desde el HTML y un script en línea de 5 líneas en el `<head>` lo oculta en las visitas siguientes leyendo `sessionStorage`, que es lo único que el CSS no puede hacer. Verificado: el overlay existe antes del first-contentful-paint. **Impacto visual:** desaparece el destello blanco de entrada.
 - **[2026-09-03] ⚠️ SEGUNDO ERROR DE MEDICIÓN PROPIO, ya corregido · Qué pasó:** `check-phase4` daba 94 % de frames "con jank" y estuve a punto de tratarlo como una regresión de mis cambios. Dos causas, ninguna del sitio: (1) los scripts lanzaban el preview con `spawn('npx', …, { shell: true })` y en Windows `kill()` mata el shell pero **no** el servidor — se habían acumulado **22 procesos huérfanos** comiendo CPU; (2) el umbral de jank estaba fijo en 20 ms, pero el display estaba a **48 Hz** (20.8 ms por frame), así que una página en blanco sin animación alguna también daba 100 % de "jank" — lo comprobé con ese control antes de tocar nada. Corregido: `scripts/lib/preview.ts` lanza node directamente sobre el bin de vite (pid real, se puede matar) y el umbral se calcula como 1.5× la cadencia real medida del display. Resultado: **0.0 % de frames perdidos**. **Lección: antes de creer una métrica que empeora, correr un control que la métrica debería pasar.**
 
+- **[2026-09-03] La pill de work pasa a ser UN seguidor `fixed` en coordenadas de viewport · Motivo:** medido en la referencia (`scripts/recon-work.ts`). No es un elemento por figura sino un único seguidor que **no se desmonta al salir**, con el cartel colgando 32 px sobre el cursor y pivotando abajo. Esa arquitectura es además la que **arregla el bug** que reportó Javier: la pill vivía dentro de cada figura en coordenadas locales, y los tweens de opacidad con `overwrite: true` mataban los `quickTo` de posición, así que al salir y volver a entrar se quedaba clavada en el borde. Ahora la posición vive en el seguidor y la apariencia en el cartel: ningún tween puede matar al otro. Verificado: al re-entrar la pill queda **a 1 px del cursor**. **Impacto visual:** alto.
+- **[2026-09-03] Balanceo del cartel: 0.0995° por píxel de desfase horizontal · Motivo:** ajuste por mínimos cuadrados sobre 177 muestras de la referencia (RMS 1.76°), con un máximo observado de 14.1°; se acota a 16°. El retardo del seguimiento se calibró contra su mediana de 15.8 px: `power3` a 0.5 s daba 24 px y `power2` a 0.32 s da **14.7 px**. **Contrapartida honesta:** el p95 sigue más alto que el suyo (187 vs 81 px) porque el barrido "rápido" de Playwright no es equivalente entre las dos páginas — la referencia va más lenta por frame y su `steps` se reparte en más frames. La mediana, que es la que domina la sensación, sí coincide.
+
 ### Diferenciadores intencionales (decisión de Javier, 2026-09-02)
 
 Estos efectos **no existen en good-fella.com** — está medido y la medición fue correcta. Javier los probó
@@ -107,6 +113,8 @@ desviaciones deliberadas de la fidelidad estricta. **No revertirlos "por fidelid
 
 - **Magnetismo en el CTA y el "+" (`MagneticButton.ts`, §6.5).** Medido: el `transform` del CTA de la referencia es `none` en reposo, cerca y encima — no hay magnetismo. Se implementa igualmente.
 - **Nav que encoge a los 80 px y se oculta/reaparece según la dirección del scroll (§6.2 original).** Medido: la referencia mantiene `top:0`, 96 px de alto y `transform` identidad en toda la página. Se implementa igualmente. Nunca se oculta con el menú abierto (dejaría el botón CLOSE fuera de alcance) ni con `prefers-reduced-motion`.
+- **La pill acompaña al cursor desde FUERA de la figura (§6.7).** Medido: la referencia monta la pill al entrar. Aquí se hace visible progresivamente en un margen de 140 px, así entra ya en marcha en vez de aparecer en el borde. Petición explícita de Javier.
+- **El marcador de las pestañas CAE con física (§6.7).** Medido: la referencia tiene un solo marcador que **salta** entre 462 → 542 → 622 px, sin animación ninguna. Aquí cae con duración proporcional a `√altura`, `bounce.out` al bajar y `back.out` al subir. Petición explícita de Javier.
 - **Tope al arrastre magnético (14 px exterior / 5 px interior).** El §6.5 da `(dx,dy) * 0.35` sin límite; en un CTA de ~240 px eso son ~51 px y el label se sale de la caja del botón (verificado en `screenshots/phase2/magnetic-pulled.png`). Se acota el máximo manteniendo la misma sensación. **Impacto visual:** el efecto pasa de exagerado a sutil.
 
 ## Progreso
