@@ -27,6 +27,45 @@
     padding-block: 1rem;
   }
 
+  /* Velo bajo la barra — DIFERENCIADOR, la referencia no lo tiene.
+     Medido: su nav es `!bg-transparent` sin backdrop-filter ni máscara, y deja que el
+     contenido colisione (cruza la franja del nav en 39 de 47 posiciones de scroll). Se lo
+     puede permitir porque su rejilla deja el centro casi vacío y sus tres zonas son robustas.
+     Nuestra sección de stack sí pone texto en el centro, justo sobre "MENU".
+     Solución acotada: transparencia TOTAL arriba del todo, donde el hero no tiene nada
+     debajo, y el velo solo a partir de los 80 px, en el color del tema vigente. */
+  .nav::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset-block: 0 -60%;
+    inset-inline: 0;
+    pointer-events: none;
+    opacity: 0;
+    /* Opaco sobre la franja donde vive el texto del nav y desvanecido solo por debajo:
+       con la primera versión (72 % al 55 %) el velo dejaba el titular "Tools." atenuado
+       pero perfectamente legible encima del wordmark. El desvanecido de abajo es lo que
+       evita que se lea como una barra sólida con borde. */
+    background-image: linear-gradient(
+      to bottom,
+      var(--surface) 0%,
+      color-mix(in srgb, var(--surface) 92%, transparent) 58%,
+      color-mix(in srgb, var(--surface) 45%, transparent) 78%,
+      transparent 100%
+    );
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  .nav[data-scrolled='true']::before {
+    opacity: 1;
+  }
+
+  /* Con el menú abierto el panel ya trae su propio fondo: el velo sobra. Se lee del estado
+     que YA existe en el panel (`[data-menu][data-open]`), sin inventar otro en el nav. */
+  .nav:has(~ .menu[data-open='true'])::before {
+    opacity: 0;
+  }
+
   .nav__logo {
     font-family: var(--ff-pixel);
     font-size: 1.375rem;

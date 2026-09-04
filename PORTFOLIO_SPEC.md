@@ -315,6 +315,8 @@ Orden en `index.html`: Preloader → Nav → **Hero → Stats → Process → Wo
 
 **Diferenciadores intencionales de Javier** (medidos como inexistentes en la referencia, ver `CLAUDE.md › Decisiones`): la barra encoge de 32 a 16 px de padding pasados los 80 px, y se oculta al bajar / reaparece al subir — nunca con el menú abierto ni con `prefers-reduced-motion`.
 
+**Velo bajo la barra, también diferenciador.** Medido: la referencia no tiene nada detrás de su nav y **deja que el contenido colisione** (cruza su franja en 39 de 47 posiciones de scroll). Aquí, en cambio, el nav es **totalmente transparente arriba del todo** y a partir de los 80 px aparece un degradado de `--surface` del tema vigente: opaco sobre la franja del texto y desvanecido por debajo, de modo que no se lea como una barra con borde. Se apaga con el menú abierto. Verificado con píxeles en el peor caso (el titular del stack cruzando el wordmark): la luminancia máxima del contenido de detrás baja de 238 a 35 y la desviación del fondo, de 89.1 a 6.1.
+
 ### 6.3 Hero — retrato ASCII (`effects/ascii/AsciiPortrait.ts`) — efecto principal
 
 Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `<canvas data-ascii>` de 100 % alto del hero.
