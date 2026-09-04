@@ -62,7 +62,7 @@ Exactamente qué secciones existen debajo del fold, sus timings precisos y si el
 | Lenguaje        | **TypeScript** strict                                                                                                                 | Claude Code produce menos errores con tipos; el portafolio muestra rigor                                                                            |
 | Animación       | **GSAP 3.13+** (`gsap`, `gsap/ScrollTrigger`, `gsap/SplitText`, `gsap/CustomEase`, `gsap/Flip`)                                       | Todos los plugins son gratuitos desde 2025 — **NO** crear `.npmrc` con token de GreenSock, no usar `npm.greensock.com`. Instalar solo `npm i gsap`  |
 | Smooth scroll   | **Lenis** (`lenis`) — sincronizado con GSAP ticker                                                                                    | Es literalmente lo que usa el sitio de referencia                                                                                                   |
-| ASCII / efectos | **Canvas 2D** primero; **Three.js** opcional en fase avanzada                                                                         | 2D es suficiente para el retrato y es depurable; WebGL solo si se quiere el "bonus"                                                                 |
+| ASCII / efectos | **Canvas 2D** primero; **Three.js** en la Fase 8 opcional                                                                             | La Fase 0 midió que el ASCII de la referencia **es WebGL** (shader con atlas de glifos), no un "opcional": igualarlo 1:1 exige WebGL. Canvas 2D llega muy cerca y es depurable, así que se construye en 2D y la paridad exacta queda como Fase 8 |
 | Estilos         | **CSS moderno** (custom properties, `clamp()`, container queries, `@layer`) en archivos `.css` por componente. Sin Tailwind, sin Sass | Control total del layout y evita clases genéricas que se ven "template"                                                                             |
 | Fuentes         | Google Fonts self-hosted en `/public/fonts` (ver 4.2)                                                                                 | Licencia OFL, sin peticiones externas                                                                                                               |
 | Routing         | Single-page con anchors + **Vite multi-page** para `/work/<slug>.html` (opcional Fase 7)                                              | Transiciones de página se hacen con overlay + `fetch` del HTML destino (Fase 7) o simplemente navegación con preloader                              |
@@ -71,6 +71,8 @@ Exactamente qué secciones existen debajo del fold, sus timings precisos y si el
 | Lint            | ESLint + Prettier                                                                                                                     | Repo público limpio                                                                                                                                 |
 
 Versiones: **Claude Code debe correr `npm view <pkg> version` para cada dependencia antes de escribir el `package.json`** y anotar las versiones reales en `CLAUDE.md`. No asumir versiones.
+
+**Nota de la Fase 0:** la referencia resultó ser **Next.js + Tailwind v4 + Sanity en Vercel**, no Webflow como suponía §1.2. No cambia nada de esta tabla: se replican técnicas, no plataforma. Los plugins de GSAP confirmados en su bundle son ScrollTrigger, SplitText, **ScrambleText**, **Flip** y **Observer** (GSAP 3.14.2).
 
 ---
 
@@ -108,54 +110,40 @@ javier-portfolio/
 │   │   ├── reset.css
 │   │   ├── typography.css
 │   │   ├── layout.css             # grid de 12 cols, container, spacing
-│   │   └── components/
-│   │       ├── button.css
-│   │       ├── nav.css
-│   │       ├── menu-overlay.css
-│   │       ├── preloader.css
-│   │       ├── cursor.css
-│   │       ├── hero.css
-│   │       ├── clients.css
-│   │       ├── work.css
-│   │       ├── services.css
-│   │       ├── marquee.css
-│   │       ├── about.css
-│   │       ├── stack.css
-│   │       ├── cta.css
-│   │       └── footer.css
+│   │   └── components/          # uno por sección/componente real (ver nota abajo)
+│   │       ├── button.css · nav.css · menu.css · preloader.css
+│   │       ├── hero.css · stats.css · process.css · work.css · marquee.css
+│   │       ├── principles.css · stack.css · faq.css · contact.css · footer.css
+│   │       └── counter.css · placeholder.css · grid-overlay.css · ascii-debug.css
+│   ├── render/
+│   │   └── sections.ts            # renderSite(): HTML de todas las secciones desde site.ts
 │   ├── core/
 │   │   ├── lenis.ts               # instancia Lenis + integración con gsap.ticker
 │   │   ├── gsap.ts                # registerPlugin centralizado + eases custom
 │   │   ├── preloader.ts
-│   │   ├── cursor.ts
 │   │   ├── transitions.ts         # (Fase 7) overlay entre páginas
-│   │   └── utils.ts               # lerp, clamp, debounce, prefersReducedMotion()
+│   │   └── utils.ts               # lerp, clamp, isTouch, prefersReducedMotion()
 │   ├── components/
 │   │   ├── Nav.ts
-│   │   ├── MenuOverlay.ts
+│   │   ├── Menu.ts                # panel desplegable (§6.2), no overlay fullscreen
 │   │   ├── MagneticButton.ts
-│   │   ├── SplitReveal.ts         # revelado de texto (SplitText)
+│   │   ├── SplitReveal.ts         # revelado de texto (SplitText con autoSplit)
 │   │   ├── Marquee.ts
-│   │   ├── WorkCard.ts
-│   │   ├── ParallaxImage.ts
-│   │   └── Counter.ts
+│   │   └── Counter.ts             # odómetro por dígito (Stats, §6.10)
 │   ├── effects/
-│   │   ├── ascii/
-│   │   │   ├── AsciiPortrait.ts   # clase principal (§6.3)
-│   │   │   ├── charRamp.ts        # rampas de caracteres
-│   │   │   └── ascii.worker.ts    # (opcional) muestreo en Web Worker
-│   │   └── noise.ts               # simplex 2D para shimmer/ripple
+│   │   └── ascii/
+│   │       ├── AsciiPortrait.ts   # clase principal (§6.3)
+│   │       ├── charRamp.ts        # rampas de caracteres
+│   │       └── debug.ts           # panel de sliders con ?debug
 │   └── sections/
-│       ├── hero.ts
-│       ├── clients.ts
-│       ├── work.ts
-│       ├── services.ts
-│       ├── about.ts
-│       ├── stack.ts
-│       ├── cta.ts
-│       └── footer.ts
-├── scripts/
-│   ├── recon.ts                   # Fase 0: analiza el sitio de referencia
+│       ├── hero.ts · heroIntro.ts
+│       ├── process.ts · work.ts · faq.ts · contact.ts · footer.ts
+│       ├── reveals.ts             # entradas por scroll comunes a las 7 secciones
+│       └── hovers.ts              # scrambles de principles y stack
+├── scripts/                       # sondas y verificación (ver CLAUDE.md › Comandos)
+│   ├── recon*.ts                  # Fase 0 y sondas puntuales sobre la referencia
+│   ├── check-phase{2,3,4}.ts      # suites de aceptación por fase
+│   ├── measure-*.ts · verify-*.ts · tune-*.ts · diagnose-*.ts   # mediciones
 │   └── screenshots.ts             # Playwright: captura cada sección en 3 viewports
 ├── recon/                         # salida de Fase 0 (gitignored)
 │   ├── reference/                 # screenshots del sitio real
@@ -165,12 +153,15 @@ javier-portfolio/
 └── screenshots/                   # salida de scripts/screenshots.ts (gitignored)
 ```
 
+**Cambios respecto al árbol original**, todos consecuencia de hallazgos de la Fase 0 ya aprobados: se eliminan `cursor.ts` y `cursor.css` (§6.5), `about.ts`/`about.css` (§6.10), `services.*` (pasa a `principles`), `cta.*` (pasa a `contact`), `WorkCard.ts` y `ParallaxImage.ts` (el work es un showcase sticky, §6.7), `ascii.worker.ts` y `noise.ts` (no hicieron falta: el muestreo es puntual y el shimmer usa ruido barato en línea). `menu-overlay.css` pasa a `menu.css`. Se añade `src/render/sections.ts`.
+
 **Convenciones de código:**
 
 - Un módulo = una clase o una función `init<Nombre>(root: HTMLElement)` que devuelve `{ destroy() }`. Todo debe ser destruible (para transiciones de página y HMR).
 - Selectores por `data-*` (`data-hero`, `data-split`, `data-magnetic`), **nunca** por clases de estilo.
 - Sin `any`. Sin `!important`. Sin librerías extra sin justificación escrita en `CLAUDE.md`.
 - Cada archivo empieza con un comentario de 1–3 líneas: qué hace y en qué fase se creó.
+- **El copy se inyecta en build, no en cliente:** `vite.config.ts` monta un plugin `transformIndexHtml` que llama a `renderSite()`. El texto vive solo en `site.ts` (§5) pero el HTML servido ya va completo, que es lo que exige el SEO de §8 — y evita el flash de contenido vacío.
 
 ---
 
@@ -178,21 +169,32 @@ javier-portfolio/
 
 ### 4.1 Color
 
+**Corregido en Fase 0 (diff.md §B4):** los valores se remidieron sobre las capturas de la referencia. Además la home **alterna tema claro y oscuro por sección**, cosa que el spec original no contemplaba, así que hacen falta tokens de tema claro.
+
 ```css
 :root {
-  --bg: #0f0e0e; /* negro cálido, base */
-  --bg-elev: #171515; /* cards, overlay menú */
-  --fg: #f2f0ec; /* blanco cálido, no #FFF puro */
-  --fg-muted: #9a9a9a; /* sub-copy */
-  --fg-dim: #6e6e6e; /* logos, labels */
+  --bg: #141314; /* medido (el #0F0E0E del spec era más oscuro de la cuenta) */
+  --bg-elev: #171515; /* cards, panel del menú */
+  --fg: #eeeeee; /* medido */
+  --fg-muted: #818081; /* medido — sub-copy */
+  --fg-dim: #696869; /* medido — logos, labels */
+
+  /* Tema claro: la home alterna por sección (diff.md §B4) */
+  --bg-light: #ededed;
+  --card-light: #f6f6f5;
+  --fg-on-light: #141314;
+
   --accent: #39ff6a; /* verde terminal — único color de marca (deliberadamente distinto del naranja de la referencia) */
   --accent-hover: #5cff85;
+  --accent-on-light: #0b5f27; /* el verde puro no contrasta sobre claro */
   --accent-ink: #0f0e0e; /* texto sobre el acento */
-  --line: rgba(242, 240, 236, 0.12);
+  --line: rgba(238, 238, 238, 0.12);
 }
 ```
 
 Regla: **un solo acento**. Cualquier otro color es un error.
+
+**Cómo se usan:** cada sección declara `data-theme="dark|light"` y el CSS de componentes **solo** toca las variables semánticas (`--surface`, `--on-surface`, `--rule`, `--btn-bg`…), nunca los colores crudos de arriba. Así un mismo botón se invierte solo al entrar en una sección clara. `:root` mapea las semánticas al tema oscuro por defecto, para que nada quede sin resolver fuera de una sección (el marquee salió negro sobre negro por no tener esa red de seguridad).
 
 Nota de diseño: `--accent` reemplaza al naranja `#FF4D00` de good-fella.com en **todos** los usos de §6 (botones, CTA, retrato ASCII §6.3, subrayados, marquee "✦", radial del CTA §6.12) — donde el spec diga "naranja" o `#FF4D00`, léase `--accent` (verde terminal). Verificar contraste AA de `--accent-ink` sobre `--accent` en Fase 5 (§8).
 
@@ -202,18 +204,20 @@ Nota de diseño: `--accent` reemplaza al naranja `#FF4D00` de good-fella.com en 
 | -------------- | ----------------------------- | ------------ | ---------------------------------------------------- |
 | Display / body | **Inter** (variable, 400–600) | system-ui    | Headlines, párrafos                                  |
 | Mono           | **JetBrains Mono** 400/500    | ui-monospace | Botones, labels, nav, "MENU", metadatos, ASCII       |
-| Wordmark       | **Silkscreen** (pixel)        | monospace    | Logo "JAVIER" / iniciales en el nav y footer gigante |
+| Wordmark       | **Silkscreen** (pixel)        | monospace    | **Solo** el logo pequeño del nav (el footer gigante va en sans, §6.13) |
 
 Escala fluida (`clamp`):
 
 ```css
---fs-display: clamp(3rem, 8.5vw, 7.5rem); /* headline hero, lh .95, ls -0.02em */
---fs-h2: clamp(2.25rem, 5.5vw, 4.5rem); /* títulos de sección */
+--fs-display: clamp(3rem, 8.5vw, 7.5rem); /* headline hero, lh 1.10, ls -0.035em (medido) */
+--fs-h2: clamp(2.25rem, 5.5vw, 4.5rem); /* títulos de sección, peso 500, ls -0.05em (medido) */
 --fs-h3: clamp(1.5rem, 2.5vw, 2.25rem);
 --fs-body: clamp(1rem, 1.1vw, 1.125rem); /* lh 1.5 */
---fs-label: 0.75rem; /* mono, uppercase, ls .08em */
---fs-footer: clamp(6rem, 22vw, 20rem); /* wordmark gigante del footer */
+--fs-label: 0.75rem; /* mono, uppercase, ls -0.02em (medido) */
+--fs-footer: clamp(6rem, 22vw, 20rem); /* wordmark gigante del footer, en SANS */
 ```
+
+**Corregido en Fase 0 (diff.md §B4):** tres medidas del spec original estaban mal y son las que más cambian el aire del sitio — el display tiene `line-height` **1.10**, no 0.95; el `letter-spacing` del display es **−0.035em**, no −0.02em; y sobre todo, **los labels mono llevan tracking NEGATIVO (−0.02em)**, no el +0.08em positivo que decía el spec. Este último invierte por completo la textura de todos los labels, botones y metadatos del sitio.
 
 ### 4.3 Espaciado y layout
 
@@ -246,155 +250,70 @@ Lenis: `{ lerp: 0.08, wheelMultiplier: 1, smoothWheel: true }` (ajustar tras pro
 
 Todo texto vive aquí como objeto tipado. **Claude Code no escribe copy dentro de HTML** — el HTML tiene `data-content="hero.title"` o se renderiza desde TS. Los campos marcados `TODO_JAVIER` los llena Javier antes de la Fase 4; mientras tanto se usa el placeholder propuesto.
 
+**Corregido en Fase 0 (diff.md §C):** la estructura de `site.ts` sigue el orden de secciones aprobado, así que el objeto de ejemplo que traía este apartado quedó obsoleto. La forma real, con las claves tal como existen hoy:
+
 ```ts
 export const site = {
-  meta: {
-    name: 'Javier', // TODO_JAVIER: nombre y apellido completos
-    role: 'Mechatronics Engineer & AI Developer',
-    location: 'Guadalajara, MX',
-    email: 'TODO_JAVIER',
-    url: 'TODO_JAVIER',
-    ogDescription: 'Mechatronics engineer building AI products. Portfolio built with Claude Code.',
-  },
-  nav: {
-    logo: 'JAVIER', // wordmark en Silkscreen (equivalente a "GOOD")
-    menuLabel: 'MENU',
-    cta: { label: "LET'S WORK TOGETHER", href: '#contact' },
-    links: [
-      { label: 'Work', href: '#work' },
-      { label: 'Services', href: '#services' },
-      { label: 'About', href: '#about' },
-      { label: 'Stack', href: '#stack' },
-      { label: 'Contact', href: '#contact' },
-    ],
-    socials: [/* TODO_JAVIER: GitHub, LinkedIn, X */],
-  },
-  hero: {
-    title: ['Engineering that', 'learns.'], // 2 líneas, equivalente a "The digital landmark / studio."
-    // Alternativas: ["Hardware brain,", "software soul."] | ["Mechatronics meets", "intelligence."]
-    subtitle:
-      'I design systems where mechanics, electronics and machine learning meet — and ship them as products people actually use.',
-    primary: { label: 'SEE THE WORK', href: '#work' },
-    secondary: { label: 'Tell me more', href: '#about' },
-  },
-  clients: {
-    label: '+ MANY MORE',
-    // Equivalente a logos de clientes: aquí van tecnologías/instituciones (texto en mono, no logos de terceros con marca registrada)
-    items: ['Tec de Monterrey', 'Orael', 'ROAR', 'Claude Code'],
-  },
-  work: {
-    heading: 'Selected work',
-    items: [
-      {
-        slug: 'orael',
-        title: 'Orael',
-        tagline: 'AI growth partner for LATAM infoproduct sellers',
-        year: '2026',
-        tags: ['SaaS', 'AI', 'Product'],
-        cover: '/img/work/orael.webp', // generar en Fase 4
-        href: '/work/orael.html',
-      },
-      {
-        slug: 'roar',
-        title: 'ROAR',
-        tagline: 'Live football engagement, second-screen social',
-        year: '2026',
-        tags: ['Mobile', 'Realtime', 'Sports'],
-        cover: '/img/work/roar.webp',
-        href: '/work/roar.html',
-      },
-      {
-        slug: 'this-site',
-        title: 'This portfolio',
-        tagline: 'Awwwards-style site built end-to-end with Claude Code',
-        year: '2026',
-        tags: ['Creative dev', 'GSAP', 'Canvas'],
-        cover: '/img/work/portfolio.webp',
-        href: 'TODO_JAVIER: repo URL',
-      },
-      // TODO_JAVIER: 1–2 proyectos de mecatrónica (circuitos, control, robótica) con foto real
-    ],
-  },
-  services: {
-    heading: 'What I do',
-    items: [
-      {
-        n: '01',
-        title: 'AI product development',
-        desc: 'From prompt engineering and agent workflows to shipping LLM-powered SaaS.',
-      },
-      {
-        n: '02',
-        title: 'Mechatronics & embedded',
-        desc: 'Circuit analysis, control systems and firmware that talk to the physical world.',
-      },
-      {
-        n: '03',
-        title: 'Creative web',
-        desc: 'Motion-driven interfaces with GSAP, Lenis and Canvas — like this one.',
-      },
-      {
-        n: '04',
-        title: 'Data & modeling',
-        desc: 'Statistics, regression and forecasting turned into decisions.',
-      },
-    ],
-  },
-  marquee: ['Mechatronics', 'AI Development', 'Creative Web', 'Product', 'Guadalajara'],
-  about: {
-    heading: 'About',
-    // Párrafo largo que se revela palabra por palabra al scroll (§6.6)
-    manifesto:
-      "I'm an engineering student at Tec de Monterrey and co-founder of two SaaS products. I care about the seam between hardware and intelligence — and about building things that feel as good as they work. This site is a live experiment: every line was written alongside Claude Code.",
-    facts: [
-      { label: 'Based in', value: 'Guadalajara, MX' },
-      { label: 'Studying', value: 'Mechatronics · Tec de Monterrey' },
-      { label: 'Building', value: 'Orael, ROAR' },
-      { label: 'Currently', value: 'TODO_JAVIER' },
-    ],
-  },
-  stack: {
-    heading: 'Tools',
-    groups: [
-      { name: 'AI', items: ['Claude / Claude Code', 'Python', 'LLM agents', 'Prompt engineering'] },
-      { name: 'Hardware', items: ['Circuit analysis', 'Control systems', 'TODO_JAVIER'] },
-      { name: 'Web', items: ['TypeScript', 'GSAP', 'Lenis', 'Canvas', 'Vite', 'Remotion'] },
-      { name: 'Data', items: ['Statistics', 'Excel modeling', 'Regression / forecasting'] },
-    ],
-  },
-  cta: {
-    heading: ["Let's build", 'something.'],
-    email: 'TODO_JAVIER',
-    button: { label: "LET'S WORK TOGETHER", href: 'mailto:TODO_JAVIER' },
-  },
-  footer: {
-    wordmark: 'JAVIER',
-    credits: 'Design inspired by Good Fella. Built with Claude Code.',
-    year: 2026,
-  },
+  meta,        // name · role · location · email · url · ogDescription
+  nav,         // links · socials · status · cta · logoAlt (swap JAVIER→TRAPERO, §6.2)
+  hero,        // title (2 líneas) · sub · cta · link "Tell me more"
+  clients,     // instituciones y tecnologías, + "MANY MORE" (§6.6)
+  stats,       // foto + 3 métricas con odómetro (§6.10)
+  process,     // 4 pasos del scrollytelling — absorbe el papel del About (§6.10)
+  work,        // proyectos con meta `[SAAS] — [AI]`, año y URL (§6.7)
+  principles,  // 6 items del grid 3×2 (§6.8)
+  stack,       // 4 grupos de herramientas (§6.11)
+  faq,         // preguntas y respuestas del acordeón (§6.15)
+  contact,     // titular, email y botón (§6.12)
+  footer,      // links · socials · credits · legal (§6.13)
 } as const;
 ```
+
+Se eliminaron del objeto original: `services` (pasa a `principles`), `about.manifesto` (su contenido vive ahora en el copy de `process`) y `cta` (renombrado a `contact`). Se añadieron `stats`, `faq` y `nav.logoAlt`. `marquee` se conserva por decisión de Javier.
+
+**El copy concreto vive en el archivo, no aquí.** Este documento fija la forma; duplicar los textos en el spec es justo lo que los hizo divergir. Para saber qué falta, buscar `[TODO]` en el sitio renderizado o `TODO_JAVIER` en `site.ts` — la lista viva está en `CLAUDE.md › TODO_JAVIER`.
 
 ---
 
 ## 6. Especificación de secciones y efectos
 
-Orden en `index.html`: Preloader → Nav → Hero → Clients → Work → Services → Marquee → About → Stack → CTA → Footer. Cada sección es `<section data-section="hero">` con su `init` en `src/sections/`.
+> **Sincronizado con `recon/diff.md` el 2026-09-03.** La Fase 0 midió el sitio de referencia y
+> corrigió buena parte de esta sección; los cambios se aprobaron en `diff.md` pero durante cinco
+> fases no se trasladaron aquí, así que el spec describía un sitio que ya no era el que se estaba
+> construyendo. Este back-port lo arregla. `diff.md` queda como documento histórico de la Fase 0:
+> **manda este archivo**. Las decisiones posteriores viven en `CLAUDE.md › Decisiones`.
+
+Orden en `index.html`: Preloader → Nav → **Hero → Stats → Process → Work → Marquee → Principles → Stack → FAQ → Contact → Footer**. Cada sección es `<section data-section="hero">` con su `init` en `src/sections/`, y declara `data-theme="dark|light"`: la home alterna temas como la referencia (hero D · stats L · process L · work D · marquee D · principles L · stack D · faq D · contact L · footer D).
 
 ### 6.1 Preloader (`core/preloader.ts`)
 
-- Overlay fullscreen `--bg` con contador `000 → 100` en mono (`Counter.ts`) y el wordmark en Silkscreen.
-- Duración mínima 1.2 s aunque cargue antes; espera a `document.fonts.ready` + imagen/vídeo del ASCII listos.
-- Salida: el overlay se desliza hacia arriba (`yPercent: -100`, `ease: "wipe"`, 1 s) mientras el hero ya está haciendo su entrada (overlap de 0.4 s con `timeline.add(..., "-=0.4")`).
+**Corregido en Fase 0 (diff.md §B2):** la referencia NO usa contador `000 → 100` ni wordmark, y su overlay es del **color de acento**, no del fondo. El contador se elimina de aquí; `Counter.ts` se reutiliza para los odómetros de Stats (§6.6).
+
+**Indicador MEDIDO frame a frame en la referencia** (`scripts/recon-spinner.ts` → `recon/spinner.json`, `scripts/recon-spinner2.ts` → `recon/spinner-slow.json`, tira visual en `screenshots/spinner-strip.png`). Los bloques **no se rellenan en secuencia**: son cuatro cuadrados que **entran volcando** desde fuera del borde izquierdo, uno tras otro, hasta llenar la pista.
+
+- **Pista:** 70 × 16 px, `position: relative`, `overflow-x: clip; overflow-y: visible` (el clip esconde los bloques que aún no han entrado; el `visible` en Y deja que la esquina sobresalga durante el giro).
+- **Cuatro bloques** de 16 × 16 px en `--accent-ink`, `position: absolute; top: 0; left: 0`, con **`transform-origin: bottom right`** y `translateX(-16px)` de partida.
+- **Cada bloque vuelca 90° sobre su esquina inferior derecha** — que es justo lo que lo desplaza 16 px a la derecha — mientras su `translateX` va de `-16px` a `18·i - 16` (`i` = índice). Los cuatro aterrizan en `[0,16] [18,34] [36,52] [54,70]`: 4 × 16 px + 3 huecos de 2 px = los 70 px exactos de la pista.
+- **Giro medido:** rotación pura (las matrices cumplen `cos² + sin² = 1.0000`, sin escala ni sesgo), **~490 ms por vuelco**, con arranque lento, medio rápido y cola larga — el mejor ajuste sobre la muestra más densa (23 puntos) es `power3.inOut` con RMS 0.041. Los vuelcos se encadenan cada **450–620 ms**, o sea prácticamente seguidos.
+- **Son exactamente 4 vuelcos, no un loop.** Verificado a dos velocidades de red muy distintas: con la carga normal el overlay dura 2.9 s y con la red estrangulada a 1.6 Mbps dura 6.85 s, y en ambos casos cada bloque gira **una sola vez**. La secuencia dura ~2 s y luego el overlay simplemente espera a que la página esté lista. (A 180 kbps ni siquiera llega el JS y no se mueve nada: la animación la mueve JS, no CSS — `animationName` es `none` en todo el subárbol.)
+- **Label "LOADING"** debajo, separado 16 px, en una caja tan ancha como la pista (67 px medidos frente a 70). Se resuelve con **scramble de izquierda a derecha** en ~700 ms, terminando antes que los bloques; los caracteres sin resolver se pintan más tenues que los ya fijados. Secuencia real capturada: `"       "` → `"\"` → `"ul"` → `"L(!"` → `"LO1q^"` → `"LOADIC@"` → `"LOADIN8"` → `"LOADING"`.
+- **Accesibilidad** (copiado de la referencia): la palabra real va en un `<span class="sr-only">LOADING</span>` y el texto que baila es `aria-hidden`, para que un lector de pantalla no lea la sopa de letras.
+- Duración mínima 1.2 s aunque cargue antes; espera a `document.fonts.ready` + la imagen del ASCII lista.
+- Salida: **wipe horizontal** — el overlay se va hacia la derecha (`xPercent: 100`) con un leve `skewX` que inclina el borde, 1 s, `ease: "wipe"`.
+- El hero arranca su entrada cuando el wipe EMPIEZA, no cuando termina: el preloader expone `exiting` (arranque de la salida) y `done` (overlay retirado). El titular usa la primera y la onda del retrato (§6.3) la segunda.
 - Solo la primera visita de la sesión (`sessionStorage`), después se salta.
-- Con `prefers-reduced-motion`: fade de 0.3 s sin contador.
+- Con `prefers-reduced-motion`: fade de 0.3 s sin animación del indicador.
 
-### 6.2 Nav (`components/Nav.ts`) y Menú (`MenuOverlay.ts`)
+### 6.2 Nav (`components/Nav.ts`) y Menú (`components/Menu.ts`)
 
-- Barra `position: fixed`, 3 zonas: wordmark | "MENU ≡" centrado | CTA + botón "+".
-- Al scrollear >80 px: la barra reduce altura (padding 32→16 px) con transición; al scrollear hacia abajo se oculta (`y: -100%`), hacia arriba reaparece (usar `ScrollTrigger.create({ onUpdate: self => self.direction })`).
-- El botón "+" y el CTA son **magnéticos** (§6.5). El "+" rota 45° en hover (se convierte en "×" visualmente) — ese mismo "+" es el que abre el menú en móvil.
-- **Menú fullscreen:** overlay `--bg-elev` con wipe desde arriba (`clip-path: inset(0 0 100% 0)` → `inset(0)`, 0.8 s, `wipe`). Links en `--fs-h2` que entran con stagger 0.06 s desde `y: 100%` con `overflow:hidden` en cada línea. Columna derecha: socials + email en mono. "MENU" cambia a "CLOSE" con un swap de texto vertical. `Esc` cierra. Al abrir se llama `lenis.stop()`, al cerrar `lenis.start()`.
+**Corregido en Fase 0/2 (diff.md §B3 + `recon/nav-behavior.json`):** el menú de la referencia no es un overlay fullscreen sino un panel desplegable, el swap de "MENU" es un scramble, y el nav **no tiene fondo propio**.
+
+- Barra `position: fixed` y **transparente** (`background-color: transparent`), 3 zonas: wordmark | "MENU ≡" centrado | CTA + botón "+".
+- **Cambia de tema según la sección de debajo**, no de fondo: el color del texto alterna `--fg` / `--fg-on-light` con un `ScrollTrigger` por sección que mira la línea media del nav.
+- Hover del CTA: **el "+" y el label intercambian posición** — `[LABEL][+] ⇄ [+][LABEL]`. Es lo observado en la referencia.
+- **Menú = panel desplegable** bajo el nav (no fullscreen): `clip-path: inset(0 0 100% 0)` → `inset(0)`, 0.8 s, `wipe`, con backdrop oscurecido detrás. 3 columnas: links en `--fs-h2` con bullet cuadrado del acento, entrando con stagger 0.06 s desde `y: 100%` | contacto, socials y badges de estado | 2 thumbnails etiquetados. "MENU" pasa a "CLOSE" con **scramble** (`ScrambleTextPlugin`), y el wordmark hace swap `JAVIER → TRAPERO`. `Esc` cierra, el foco queda atrapado dentro y el panel es `inert` al cerrarse. Al abrir se llama `lenis.stop()`, al cerrar `lenis.start()`.
+
+**Diferenciadores intencionales de Javier** (medidos como inexistentes en la referencia, ver `CLAUDE.md › Decisiones`): la barra encoge de 32 a 16 px de padding pasados los 80 px, y se oculta al bajar / reaparece al subir — nunca con el menú abierto ni con `prefers-reduced-motion`.
 
 ### 6.3 Hero — retrato ASCII (`effects/ascii/AsciiPortrait.ts`) — efecto principal
 
@@ -440,55 +359,77 @@ Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `
 - Botones: `y: 20` + opacity, stagger 0.1, después del sub-copy.
 - Botones `.btn`: `mono uppercase 0.75rem ls .08em`, `padding 14px 20px`, fondo `--accent`, texto `--accent-ink`, sin radius. El "+" es `.btn--icon` cuadrado del mismo alto (44 px). Hover: fondo `--accent-hover` + el texto hace un **slide vertical** (dos copias del label en un contenedor `overflow:hidden`, la superior sube `-100%` y la inferior entra). Link "Tell me more": subrayado 1 px que se retrae y vuelve a crecer desde la izquierda en hover (`scaleX` con `transform-origin` alternado).
 
-### 6.5 Botones magnéticos y cursor (`MagneticButton.ts`, `core/cursor.ts`)
+### 6.5 Feedback de los botones (`MagneticButton.ts`)
 
-- Magnético: en `pointermove` dentro de un área de `1.6×` el tamaño del botón, el botón se traslada `(dx, dy) * 0.35` con `gsap.quickTo` (`duration 0.6, ease: main`); al salir vuelve a 0 con `elastic.out(1, 0.4)`. El texto interior se mueve `* 0.15` adicional (parallax interno).
-- Cursor custom: punto de 8 px `--fg` con `mix-blend-mode: difference`, sigue el puntero con `quickTo` (lerp ≈ 0.15). Sobre `[data-cursor="view"]` (cards de work) crece a 80 px con texto "VIEW" en mono. Sobre links crece a 40 px. Se oculta en touch devices y con `prefers-reduced-motion` (cursor nativo).
+**Corregido en Fase 0/2 (diff.md §B7):** la referencia **no tiene cursor custom** — el puntero es el nativo y el feedback de hover se hace con scrambles, bullets cuadrados y la pill "VIEW PROJECT". `core/cursor.ts` se elimina del proyecto.
+
+- El magnetismo se midió como **inexistente** en la referencia (`recon/nav-behavior.json`: el `transform` del CTA es `none` en reposo, cerca y encima). Su estado depende de la decisión vigente en `CLAUDE.md › Decisiones`.
+- Si está activo: en `pointermove` dentro de un área de `1.6×` el botón se traslada `(dx, dy) * 0.35` con `gsap.quickTo` (`duration 0.6, ease: main`), **acotado a 14 px** (sin tope el label se sale de la caja en un CTA ancho); al salir vuelve a 0 con `elastic.out(1, 0.4)`. El contenido interior se mueve `* 0.15` adicional, acotado a 5 px.
+- Sin efectos de puntero en dispositivos táctiles ni con `prefers-reduced-motion`.
 
 ### 6.6 Clients / tech row (`sections/clients.ts`)
 
 - Fila con `items` en mono uppercase `--fg-dim`, separados por gap 48 px, + "+ MANY MORE". Entrada por ScrollTrigger: fade + stagger 0.08 al 80 % del viewport, `once: true`.
 
-### 6.7 Work (`sections/work.ts`, `WorkCard.ts`)
+### 6.7 Work (`sections/work.ts`)
+
+**Corregido en Fase 0 (diff.md §B6):** la lista de filas con imagen flotante siguiendo al cursor **no existe** en la referencia. Es un **showcase sticky** y no hay `WorkCard.ts`.
 
 - Título "Selected work" en `--fs-h2` con `SplitReveal` disparado por scroll (`start: "top 80%"`).
-- Lista vertical de filas full-width (estilo agencia): cada fila = índice mono `01`, título en `--fs-h3`, tagline en `--fg-muted`, tags mono, año a la derecha. Línea inferior `--line`.
-- **Hover:** una imagen flotante (`cover`) de 320×400 sigue al cursor con `quickTo` (lerp 0.1) y ligera rotación proporcional a la velocidad del puntero (`clamp(vx * 0.05, -8, 8)`); aparece con `scale 0.8→1` + opacity. Solo una imagen visible; al cambiar de fila hace crossfade. El cursor pasa a modo "VIEW".
-- La fila en hover: título se desplaza `x: 16px` y las demás filas bajan opacity a 0.4.
-- Móvil: cada fila muestra su imagen debajo, sin efecto flotante.
+- **Showcase sticky:** columna de pestañas (una por proyecto, con índice mono `01` y bullet cuadrado del acento en la activa) junto a una media grande. Al scrollear, la pestaña activa avanza sola y la media hace crossfade. Cada proyecto lleva `meta` en mono estilo `[SAAS] — [AI]` y su año.
+- **Pill "VIEW PROJECT"** sobre la media, persiguiendo al cursor con `gsap.quickTo`. Sustituye al cursor custom del spec original.
+- Móvil: cards apiladas, sin sticky ni pill.
 - Entrada: filas con `y: 40` + opacity, stagger 0.1, `once: true`.
 
-### 6.8 Services (`sections/services.ts`)
+### 6.8 Principles (`sections/principles.ts` → renderizado en `render/sections.ts`)
 
-- Grid 2 cols (móvil 1): número mono `01`, título `--fs-h3`, descripción `--fg-muted`. Borde superior `--line` que se dibuja (`scaleX 0→1`, origin left) al entrar.
-- Título de sección **pinneado** a la izquierda (`pin: true` sobre la columna del título, `end: "bottom bottom"` del grid) mientras los items pasan a la derecha — solo en ≥ 1024 px (`gsap.matchMedia`).
+**Corregido en Fase 0 (diff.md §B5):** la sección "Services" del spec no existe; la referencia tiene en su lugar un grid `Build` de 3×2. Javier decidió llenarlo con **principios de trabajo**, no con el stack (que vive aparte en §6.11).
+
+- Grid 3×2 (móvil 1): número mono `01`, título, descripción `--fg-muted`, separados por hairlines `--rule` que se dibujan (`scaleX 0→1`, origin left) al entrar.
+- **Hover:** scramble del título con `ScrambleTextPlugin` + bullet cuadrado del acento. Sin efectos en táctil.
 
 ### 6.9 Marquee (`Marquee.ts`)
 
 - Texto en `--fs-h2`, mono, uppercase, separado por "✦" en `--accent`. Dos copias del contenido, `translateX` continuo con `gsap.to(track, { xPercent: -50, repeat: -1, ease: "none", duration: 20 })`.
 - La velocidad reacciona al scroll: `timeScale` = `1 + clamp(|lenis.velocity| * 0.05, 0, 3)`, con lerp de vuelta a 1. Dirección invertida al scrollear hacia arriba.
 
-### 6.10 About — manifiesto (`sections/about.ts`)
+### 6.10 Stats y Process (sustituyen al About-manifiesto)
 
-- Párrafo en `--fs-h3`, ancho máx. (usar cols 3–11). `SplitText` por palabras; cada palabra empieza en `--fg-dim` opacity 0.25 y pasa a `--fg` opacity 1 con `scrub: true` entre `start: "top 75%"` y `end: "bottom 45%"` (efecto "texto que se enciende al leer").
-- Debajo, `facts` en 4 columnas mono (label `--fg-dim` / value `--fg`).
+**Corregido en Fase 0 (diff.md §B5):** la referencia no tiene sección de manifiesto con texto que se enciende al leer. Su lugar en el recorrido lo ocupan dos secciones, y entre las dos absorben el papel narrativo que el spec le daba al About. **`sections/about.ts` no se crea.**
 
-### 6.11 Stack (`sections/stack.ts`)
+- **Stats** — 4 cards: foto de Javier + 3 métricas. Cada cifra es un **odómetro por dígito** (`Counter.ts`, columna 0–9 que rueda) disparado al entrar en viewport. Aquí es donde se reutiliza el `Counter.ts` que el spec original destinaba al contador del preloader.
+- **Process** (`sections/process.ts`) — **scrollytelling** de 4 pasos: el paso activo se enciende y el resto baja al 32 % de opacidad, con la media **sticky** al lado haciendo crossfade al cambiar de paso. Bullets cuadrados marcan el avance. Con `prefers-reduced-motion` todos los pasos quedan encendidos y la media fija.
 
-- 4 columnas (móvil 2) con `name` en mono `--accent` y lista de items. Entrada con stagger por columna. Hover en item: la línea inferior se dibuja.
+### 6.11 Stack (`render/sections.ts` + hovers en `sections/hovers.ts`)
 
-### 6.12 CTA (`sections/cta.ts`)
+- 4 columnas (móvil 2) con `name` en mono `--accent` y lista de items. Entrada con stagger por columna. Hover en item: scramble del nombre y la línea inferior se dibuja.
 
-- Título 2 líneas `--fs-display` con `SplitReveal`; email en `--fs-h3` con subrayado animado; botón "LET'S WORK TOGETHER" + "+" magnéticos, centrados.
-- Fondo: sutil radial `--accent` al 6 % que sigue al puntero (variable CSS `--mx/--my` actualizadas en `pointermove`).
+### 6.12 Contact (`sections/contact.ts`)
+
+**Renombrado:** el spec la llamaba "CTA"; en la estructura aprobada es la sección **Contact**, y es de **tema claro** con el botón invertido a oscuro (como el "BOOK A 15-MIN CALL" de la referencia).
+
+- Título 2 líneas `--fs-display` con `SplitReveal`; email en `--fs-h3` con subrayado animado; botón "LET'S WORK TOGETHER" + "+", centrados.
+- Fondo: sutil radial `--accent` al 6 % que sigue al puntero. Se actualizan solo las variables CSS `--mx/--my` en `pointermove` y el CSS pinta el radial — sin tweens por frame. Desactivado en táctil.
 
 ### 6.13 Footer (`sections/footer.ts`)
 
-- Wordmark "JAVIER" en Silkscreen a `--fs-footer`, color `--fg`, que **entra desde abajo por scroll** (`yPercent: 30 → 0`, scrub) y queda parcialmente recortado por el borde inferior (`line-height: 0.8; margin-bottom: -0.1em`).
-- Fila superior: 3 columnas mono — links de navegación | socials | `credits` + año + "Local time: HH:MM" (reloj de Guadalajara actualizado cada segundo).
-- Efecto "revelar footer": el footer es `position: sticky; bottom: 0; z-index: 0` y la sección anterior tiene `z-index: 1` con fondo, de modo que el footer parece descubrirse bajo el CTA.
+**Corregido en Fase 0 (diff.md §B5):** en la referencia el wordmark gigante va en la **sans**, no en tipografía de píxel. Javier aprobó respetarlo: **Silkscreen queda solo para el logo pequeño del nav.**
 
-### 6.14 Transiciones globales
+- Wordmark "JAVIER" en **sans** a `--fs-footer`, color `--fg`, que **entra desde abajo por scroll** (`yPercent: 30 → 0`, scrub) y queda parcialmente recortado por el borde inferior (`line-height: 0.8; margin-bottom: -0.1em`).
+- **Segundo retrato ASCII** (§6.3) asomando desde el borde derecho sobre el wordmark, misma clase `AsciiPortrait`, segunda instancia. Replica los dos canvases laterales de la referencia con un solo retrato, según lo aprobado en diff.md §B1.
+- Fila superior: 3 columnas mono — links de navegación (con scramble en hover) | socials | `credits` + año + "Local time: HH:MM" (reloj de Guadalajara actualizado cada segundo). **Sin newsletter** (la referencia la tiene; Javier no).
+- **Easter eggs por teclado**, anunciados en el propio footer como hace la referencia: **`G`** superpone la rejilla de 12 columnas y **`C`** rota el color de acento. Ambos se ignoran mientras el foco está en un campo de texto.
+- Efecto "revelar footer": el footer es `position: sticky; bottom: 0; z-index: 0` y la sección anterior tiene `z-index: 1` con fondo, de modo que el footer parece descubrirse bajo Contact.
+
+### 6.14 FAQ (`sections/faq.ts`)
+
+**Sección nueva** de la estructura aprobada (diff.md §B5); no existía en el spec original.
+
+- Acordeón de preguntas, **una abierta a la vez**, con la altura animada y scramble del título al abrir.
+- Accesible por teclado: cada cabecera es un `<button>` con `aria-expanded` y el panel se referencia con `aria-controls`.
+- Hairline `--rule` entre preguntas, dibujada con `scaleX` al entrar.
+
+### 6.15 Transiciones globales
 
 - **Scroll:** Lenis en `core/lenis.ts`:
   ```ts
@@ -498,8 +439,9 @@ Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `
   gsap.ticker.lagSmoothing(0);
   ```
   Anchors del menú usan `lenis.scrollTo(target, { offset: -80, duration: 1.4 })`.
-- **Reduced motion:** `utils.prefersReducedMotion()` → Lenis desactivado, animaciones de entrada reemplazadas por `gsap.set` a estado final, ASCII estático sin shimmer, cursor nativo.
-- **Resize:** todo `SplitText` se revierte y se recalcula con debounce 200 ms; `ScrollTrigger.refresh()` tras recalcular. ASCII recalcula grid.
+- **Reduced motion:** `utils.prefersReducedMotion()` → Lenis desactivado, animaciones de entrada reemplazadas por `gsap.set` a estado final, ASCII estático sin shimmer. (No hay cursor custom que desactivar, §6.5.)
+- **Resize:** `SplitReveal.ts` usa `SplitText` con `autoSplit: true` + `onSplit` devolviendo el tween, que **resuelve por sí solo** el re-split en resize y al cargar las fuentes. Esto sustituye al debounce manual de 200 ms que pedía este punto: la propia librería lo hace mejor y sin código nuestro. `ScrollTrigger.refresh()` tras recalcular. El ASCII recalcula su grid.
+- **Sin efectos de puntero en táctil:** `utils.isTouch()` apaga pill, halo, magnetismo y parallax del retrato.
 
 ---
 
@@ -554,10 +496,10 @@ Objetivo: eliminar las suposiciones de §1.2.
 - `scripts/screenshots.ts` funcionando (3 viewports × cada sección → `screenshots/`).
 - **Criterio:** sitio estático completo, tipografía y colores idénticos a §4, responsive en 3 viewports, Lenis funcionando, 0 errores de consola.
 
-### Fase 2 — Nav, botones, cursor, preloader
+### Fase 2 — Nav, menú, botones, preloader
 
-- `Nav.ts`, `MenuOverlay.ts`, `MagneticButton.ts`, `cursor.ts`, `preloader.ts` + `Counter.ts`, estilos de botones con hover slide.
-- **Criterio:** preloader → hero handoff con overlap; menú abre/cierra con teclado y mouse; magnetismo suave sin jitter (verificar que no se acumule transform); cursor con blend mode; todo desactivado con reduced-motion.
+- `Nav.ts`, `Menu.ts`, `MagneticButton.ts`, `preloader.ts`, estilos de botones con hover slide. (Sin `cursor.ts`, §6.5. `Counter.ts` se mueve a la Fase 4 con Stats.)
+- **Criterio:** preloader → hero handoff con overlap; menú abre/cierra con teclado y mouse; el nav cambia de color por sección; magnetismo suave sin jitter (verificar que no se acumule transform); todo desactivado con reduced-motion.
 
 ### Fase 3 — Retrato ASCII (Canvas 2D)
 
