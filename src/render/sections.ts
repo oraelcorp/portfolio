@@ -400,7 +400,7 @@ function preloader(): string {
   return `
   <div class="preloader" data-preloader hidden>
     <div class="preloader__blocks" aria-hidden="true">
-      ${[0, 1, 2, 3].map(() => `<span class="preloader__block" data-block></span>`).join('')}
+      ${[0, 1, 2].map(() => `<span class="preloader__block" data-block></span>`).join('')}
     </div>
     <p class="preloader__label t-mono-sm" role="status">Loading</p>
   </div>`;

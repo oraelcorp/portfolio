@@ -1,6 +1,6 @@
 // src/effects/ascii/AsciiPortrait.ts — retrato ASCII en Canvas 2D (§6.3). Fase 3.
 // Sujeto: el jaguar de Javier. Base en --accent, highlights en --fg, shimmer, puntero,
-// reveal por scanline, parallax y el modo color por clic (§6.3 punto 11).
+// onda de entrada desde la cabeza, parallax y el modo color por clic (§6.3 punto 12).
 //
 // Tipografía (medida en scripts/diagnose-type.ts, comparada en screenshots/type/): el glifo se
 // dimensiona por el alto real de su tinta, la celda se alinea al píxel de dispositivo y NO se
@@ -9,7 +9,7 @@
 // Presupuesto de 4 ms/frame (§8): repintar las ~6000 celdas cuesta ~11 ms, así que NUNCA se
 // repinta todo en un frame de animación. Cada tipo de cambio toca solo lo suyo:
 //   shimmer  → las ~180 celdas que cambiaron de glifo
-//   reveal   → únicamente las filas nuevas
+//   onda     → solo el anillo que la cresta acaba de recorrer
 //   puntero  → el rectángulo que cubre la posición anterior y la nueva
 //   modo color → composición de dos canvas ya pintados (fallback previsto en §6.3 punto 11)
 
@@ -42,6 +42,8 @@ export interface AsciiOptions {
    * verticales sin tocar los horizontales y es lo que más ensuciaba el retrato.
    */
   stretch?: boolean;
+  /** Origen de la onda de entrada, en fracción del grid. Por defecto, la cabeza del jaguar. */
+  revealOrigin?: { x: number; y: number };
 }
 
 const ALPHA_STEPS = 8;
@@ -50,6 +52,10 @@ const SHIMMER_RATE = 0.03;
 const FADE_DURATION = 0.9;
 /** Sobremuestreo del canvas intermedio donde se aplica el desenfoque. */
 const SMOOTH_SS = 2;
+/** Grosor de la cresta de la onda de entrada, en celdas. */
+const WAVE_BAND = 7;
+/** Duración del barrido radial (§6.3 punto 9, ahora onda en vez de scanline). */
+const REVEAL_DURATION = 1.9;
 /** Curva de alpha de las celdas base: alpha = ALPHA_FLOOR + ALPHA_RANGE · L. */
 const ALPHA_FLOOR = 0.22;
 const ALPHA_RANGE = 0.5;
@@ -96,12 +102,15 @@ export class AsciiPortrait implements Module {
   private salt = new Uint16Array(0);
   private cellX = new Int16Array(0);
   private cellY = new Int16Array(0);
+  /** Distancia de cada celda al origen de la onda, precalculada en el muestreo. */
+  private cellDist = new Float32Array(0);
   private chars: string[] = [];
   private buckets: Bucket[] = [];
 
-  // Estado
-  private revealRow = 0;
-  private drawnRow = 0;
+  // Estado. La entrada es una onda radial desde la cabeza (§6.3 punto 9), no un barrido:
+  // se dibuja lo que queda dentro de `revealRadius` y la cresta se aclara al pasar.
+  private revealRadius = 0;
+  private drawnRadius = 0;
   private colorMix = 0;
   private mode: 'ascii' | 'color' = 'ascii';
   private pointerX = -999;
@@ -161,6 +170,8 @@ export class AsciiPortrait implements Module {
       // La contrapartida: el glifo ocupa ~60 % del ancho, así que la celda es cuadrada como
       // rejilla pero no como mancha de tinta.
       stretch: false,
+      // La cabeza del jaguar: de ahí sale la onda, como una piedra al caer al agua
+      revealOrigin: { x: 0.28, y: 0.36 },
       ...rest,
       onModeChange: onModeChange ?? ((): void => {}),
     };
@@ -214,10 +225,9 @@ export class AsciiPortrait implements Module {
     this.attach();
 
     if (this.reduced || !this.opts.interactive) {
-      this.revealRow = this.rows;
-      this.drawnRow = 0;
-      this.paintRows(0, this.rows);
-      this.drawnRow = this.rows;
+      this.revealRadius = this.maxRadius() + WAVE_BAND;
+      this.drawnRadius = this.revealRadius;
+      this.paintWithin(this.revealRadius);
     } else {
       this.ready = true;
       if (this.revealRequested) this.reveal();
@@ -236,14 +246,39 @@ export class AsciiPortrait implements Module {
       return;
     }
 
-    this.revealRow = 0;
-    this.drawnRow = 0;
+    this.revealRadius = 0;
+    this.drawnRadius = 0;
     this.canvas.dataset.reveal = '0';
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
     gsap.fromTo(
       this,
-      { revealRow: 0 },
-      { revealRow: this.rows, duration: 1.4, ease: 'main', overwrite: true },
+      { revealRadius: 0 },
+      {
+        revealRadius: this.maxRadius() + WAVE_BAND,
+        duration: REVEAL_DURATION,
+        ease: 'silk',
+        overwrite: true,
+      },
+    );
+  }
+
+  /** Origen de la onda en celdas. */
+  private origin(): { x: number; y: number } {
+    return {
+      x: this.opts.revealOrigin.x * this.cols,
+      y: this.opts.revealOrigin.y * this.rows,
+    };
+  }
+
+  /** Distancia desde el origen hasta la esquina más lejana: cuándo termina la onda. */
+  private maxRadius(): number {
+    const o = this.origin();
+    return Math.max(
+      Math.hypot(o.x, o.y),
+      Math.hypot(this.cols - o.x, o.y),
+      Math.hypot(o.x, this.rows - o.y),
+      Math.hypot(this.cols - o.x, this.rows - o.y),
     );
   }
 
@@ -347,6 +382,7 @@ export class AsciiPortrait implements Module {
     this.salt = new Uint16Array(total);
     this.cellX = new Int16Array(total);
     this.cellY = new Int16Array(total);
+    this.cellDist = new Float32Array(total);
     this.chars = new Array<string>(total);
 
     for (let i = 0; i < total; i++) {
@@ -367,6 +403,13 @@ export class AsciiPortrait implements Module {
 
       this.cellY[i] = (i / cols) | 0;
       this.cellX[i] = i % cols;
+    }
+
+    // Distancias al origen de la onda: se calculan una vez y se leen en cada frame
+    const ox = this.opts.revealOrigin.x * cols;
+    const oy = this.opts.revealOrigin.y * rows;
+    for (let i = 0; i < total; i++) {
+      this.cellDist[i] = Math.hypot((this.cellX[i] ?? 0) - ox, (this.cellY[i] ?? 0) - oy);
     }
 
     // Highlight = contraste local alto respecto a las 8 vecinas (§6.3 punto 5)
@@ -460,9 +503,8 @@ export class AsciiPortrait implements Module {
     ctx.textBaseline = 'top';
   }
 
-  /** Pinta las filas [from, to) agrupando por estilo. Lo usa el reveal, fila a fila. */
-  private paintRows(from: number, to: number, ctx = this.ctx): void {
-    if (to <= from) return;
+  /** Pinta todas las celdas dentro de `radius`, agrupando por estilo. */
+  private paintWithin(radius: number, ctx = this.ctx): void {
     this.prepare(ctx);
 
     const cellH = this.ch;
@@ -474,9 +516,49 @@ export class AsciiPortrait implements Module {
 
       for (let k = 0; k < cells.length; k++) {
         const i = cells[k] ?? 0;
-        const y = this.cellY[i] ?? 0;
-        if (y < from || y >= to) continue;
-        ctx.fillText(this.chars[i] ?? '', (this.cellX[i] ?? 0) * stepX, y * cellH);
+        if ((this.cellDist[i] ?? 0) > radius) continue;
+        ctx.fillText(this.chars[i] ?? '', (this.cellX[i] ?? 0) * stepX, (this.cellY[i] ?? 0) * cellH);
+      }
+    }
+  }
+
+  /**
+   * Repinta el anillo que la onda acaba de atravesar (§6.3 punto 9). Las celdas de la cresta
+   * se aclaran hacia --fg y vuelven a su color al quedar detrás, que es lo que da la sensación
+   * de piedra cayendo al agua.
+   */
+  private paintWave(from: number, to: number): void {
+    const ctx = this.ctx;
+    this.prepare(ctx);
+
+    const cellH = this.ch;
+    const stepX = this.stepX;
+    const total = this.cols * this.rows;
+
+    for (let i = 0; i < total; i++) {
+      const d = this.cellDist[i] ?? 0;
+      if (d < from || d > to) continue;
+
+      const px = (this.cellX[i] ?? 0) * stepX;
+      const py = (this.cellY[i] ?? 0) * cellH;
+      ctx.clearRect(px, py, stepX, cellH);
+
+      // Todavía por delante de la onda: la celda queda vacía
+      if (d > this.revealRadius) continue;
+
+      const l = this.luma[i] ?? 0;
+      if (l < 0.12) continue;
+
+      // Cresta: cuanto más cerca del frente, más se aclara hacia blanco
+      const crest = 1 - (this.revealRadius - d) / WAVE_BAND;
+
+      if (crest > 0) {
+        const lifted = clamp(l + 0.4 * crest, 0, 1);
+        ctx.fillStyle = this.rgba(this.fg[0], this.fg[1], this.fg[2], 0.35 + 0.65 * crest);
+        ctx.fillText(denseChar(lifted, i, this.salt[i] ?? 0), px, py);
+      } else {
+        ctx.fillStyle = this.styleFor(i, l, this.colorMix);
+        ctx.fillText(this.chars[i] ?? '', px, py);
       }
     }
   }
@@ -489,11 +571,11 @@ export class AsciiPortrait implements Module {
 
     const cellH = this.ch;
     const stepX = this.stepX;
-    const reveal = Math.floor(this.revealRow);
+    const reveal = this.revealRadius;
 
     for (const i of indices) {
       const y = this.cellY[i] ?? 0;
-      if (y >= reveal) continue;
+      if ((this.cellDist[i] ?? 0) > reveal) continue;
 
       const x = this.cellX[i] ?? 0;
       const px = x * stepX;
@@ -515,7 +597,7 @@ export class AsciiPortrait implements Module {
     const cellH = this.ch;
     const pad = this.opts.pointerRadius + 1;
     const cols = this.cols;
-    const reveal = Math.floor(this.revealRow);
+    const reveal = this.revealRadius;
 
     const minX = Math.max(0, Math.floor(Math.min(prevX, this.pointerX) - pad));
     const maxX = Math.min(cols - 1, Math.ceil(Math.max(prevX, this.pointerX) + pad));
@@ -533,10 +615,11 @@ export class AsciiPortrait implements Module {
     const pointerOn = this.hasPointer && px > -100;
 
     for (let y = minY; y <= maxY; y++) {
-      if (y >= reveal) continue;
-
       for (let x = minX; x <= maxX; x++) {
         const i = y * cols + x;
+        // Lo que la onda todavía no ha alcanzado no se dibuja
+        if ((this.cellDist[i] ?? 0) > reveal) continue;
+
         const l = this.luma[i] ?? 0;
         if (l < 0.12) continue;
 
@@ -561,8 +644,8 @@ export class AsciiPortrait implements Module {
   /** Repinta el retrato completo. Solo en momentos puntuales, nunca por frame. */
   private paintAll(): void {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.paintRows(0, Math.floor(this.revealRow));
-    this.drawnRow = Math.floor(this.revealRow);
+    this.paintWithin(this.revealRadius);
+    this.drawnRadius = this.revealRadius;
   }
 
   // ---------------------------------------------------------------- ciclo
@@ -619,7 +702,7 @@ export class AsciiPortrait implements Module {
 
   private readonly onResize = (): void => {
     this.resize();
-    this.revealRow = this.rows;
+    this.revealRadius = this.maxRadius() + WAVE_BAND;
     this.paintAll();
   };
 
@@ -694,7 +777,7 @@ export class AsciiPortrait implements Module {
 
     const saved = this.buckets;
     this.buckets = this.makeBuckets(mix);
-    this.paintRows(0, Math.floor(this.revealRow), ctx);
+    this.paintWithin(this.revealRadius, ctx);
     this.buckets = saved;
 
     return off;
@@ -738,14 +821,14 @@ export class AsciiPortrait implements Module {
 
     let painted = false;
 
-    // 1) Reveal: solo las filas nuevas desde el último frame
-    const reveal = Math.floor(this.revealRow);
-    if (reveal > this.drawnRow) {
-      this.paintRows(this.drawnRow, reveal);
-      this.drawnRow = reveal;
+    // 1) Onda de entrada: solo se repinta el anillo que la cresta acaba de recorrer
+    if (this.revealRadius > this.drawnRadius) {
+      this.paintWave(this.drawnRadius - WAVE_BAND, this.revealRadius);
+      this.drawnRadius = this.revealRadius;
       painted = true;
-      // Progreso observable: lo leen ?debug y check-phase3 sin tener que releer el canvas
-      this.canvas.dataset.reveal = (reveal / this.rows).toFixed(3);
+      // Progreso observable: lo leen ?debug y las suites, sin releer el canvas
+      const full = this.maxRadius() + WAVE_BAND;
+      this.canvas.dataset.reveal = Math.min(1, this.revealRadius / full).toFixed(3);
     }
 
     // 2) Shimmer: solo las celdas cuyo glifo cambió
@@ -796,7 +879,7 @@ export class AsciiPortrait implements Module {
   update(partial: Partial<AsciiOptions>): void {
     Object.assign(this.opts, partial);
     this.resize();
-    this.revealRow = this.rows;
+    this.revealRadius = this.maxRadius() + WAVE_BAND;
     this.paintAll();
   }
 

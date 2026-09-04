@@ -14,6 +14,8 @@ export interface SplitRevealOptions {
   delay?: number;
   stagger?: number;
   duration?: number;
+  /** Ease con nombre. El hero usa "silk", más suave que "main". */
+  ease?: string;
 }
 
 export interface SplitRevealHandle extends Module {
@@ -25,7 +27,7 @@ export interface SplitRevealHandle extends Module {
  * Revela un titular por líneas enmascaradas. Devuelve un handle para poder dispararlo a mano.
  */
 export function splitReveal(el: HTMLElement, options: SplitRevealOptions = {}): SplitRevealHandle {
-  const { trigger = 'scroll', delay = 0, stagger = 0.08, duration = 1.1 } = options;
+  const { trigger = 'scroll', delay = 0, stagger = 0.08, duration = 1.1, ease = 'main' } = options;
   const reduced = prefersReducedMotion();
 
   if (reduced) {
@@ -48,7 +50,7 @@ export function splitReveal(el: HTMLElement, options: SplitRevealOptions = {}): 
       const tween = gsap.from(self.lines, {
         yPercent: 110,
         duration,
-        ease: 'main',
+        ease,
         stagger,
         delay,
         // En modo manual el titular espera: se arranca desde play()
@@ -77,7 +79,7 @@ export function splitReveal(el: HTMLElement, options: SplitRevealOptions = {}): 
       gsap.fromTo(
         lines,
         { yPercent: 110 },
-        { yPercent: 0, duration, ease: 'main', stagger, delay: delay + extraDelay, overwrite: true },
+        { yPercent: 0, duration, ease, stagger, delay: delay + extraDelay, overwrite: true },
       );
     },
     destroy() {

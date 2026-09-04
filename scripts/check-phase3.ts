@@ -123,7 +123,7 @@ async function main(): Promise<void> {
     const partials = progress.filter((p) => p > 0.02 && p < 0.98);
     const monotonic = progress.every((p, i) => i === 0 || p >= (progress[i - 1] ?? 0));
     check(
-      'el reveal avanza de arriba abajo (scanline), no de golpe',
+      'la onda de entrada se expande progresivamente, no de golpe',
       partials.length >= 3 && monotonic && (progress.at(-1) ?? 0) > 0.98,
       `${partials.length} muestras intermedias · ${progress
         .slice(0, 6)

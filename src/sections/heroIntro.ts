@@ -16,7 +16,13 @@ export function initHeroIntro(exiting: Promise<void>): Module {
   if (!title) return { destroy() {} };
 
   const reduced = prefersReducedMotion();
-  const reveal = splitReveal(title, { trigger: 'manual', duration: 1.1, stagger: 0.08 });
+  // Entrada larga y muy suave: las letras se posan en vez de aterrizar
+  const reveal = splitReveal(title, {
+    trigger: 'manual',
+    duration: 1.8,
+    stagger: 0.14,
+    ease: 'silk',
+  });
 
   const rest = [sub, actions].filter((el): el is HTMLElement => el !== null);
 
@@ -40,9 +46,9 @@ export function initHeroIntro(exiting: Promise<void>): Module {
     reveal.play();
 
     tl = gsap.timeline();
-    tl.to(rest[0] ?? {}, { autoAlpha: 1, y: 0, duration: 0.8, ease: 'main' }, 0.5)
-      .to(rest[1] ?? {}, { autoAlpha: 1, y: 0, duration: 0.8, ease: 'main' }, 0.7)
-      .to(clients, { autoAlpha: 1, duration: 0.6, ease: 'none', stagger: 0.08 }, 0.9);
+    tl.to(rest[0] ?? {}, { autoAlpha: 1, y: 0, duration: 1.2, ease: 'silk' }, 0.7)
+      .to(rest[1] ?? {}, { autoAlpha: 1, y: 0, duration: 1.2, ease: 'silk' }, 0.95)
+      .to(clients, { autoAlpha: 1, duration: 0.9, ease: 'none', stagger: 0.1 }, 1.2);
   });
 
   return {

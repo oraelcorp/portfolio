@@ -58,13 +58,13 @@ export function initPreloader(): Preloader {
     const started = performance.now();
 
     if (!reduced) {
-      // Los bloques se van llenando mientras carga
+      // Ritmo observado en la referencia: dos bloques entran con calma y un tercero muy rápido,
+      // antes de apagarse todos y repetir.
       tl = gsap.timeline({ repeat: -1 });
-      tl.to(blocks, { opacity: 1, duration: 0.18, stagger: 0.16, ease: 'none' }).to(blocks, {
-        opacity: 0.25,
-        duration: 0.18,
-        ease: 'none',
-      });
+      tl.to(blocks[0] ?? {}, { opacity: 1, duration: 0.26, ease: 'none' })
+        .to(blocks[1] ?? {}, { opacity: 1, duration: 0.26, ease: 'none' })
+        .to(blocks[2] ?? {}, { opacity: 1, duration: 0.09, ease: 'none' })
+        .to(blocks, { opacity: 0.22, duration: 0.16, ease: 'none' }, '+=0.14');
     }
 
     await assetsReady();

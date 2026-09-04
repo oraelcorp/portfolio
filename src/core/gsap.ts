@@ -13,6 +13,9 @@ gsap.registerPlugin(ScrollTrigger, CustomEase, Flip, ScrambleTextPlugin, SplitTe
 // Mismos valores que las custom properties --ease-out / --ease-inout de tokens.css
 CustomEase.create('main', '0.16, 1, 0.3, 1');
 CustomEase.create('wipe', '0.83, 0, 0.17, 1');
+// Entrada muy suave para el titular del hero: arranca antes que "main" y frena más largo,
+// de modo que las letras se posan en vez de aterrizar.
+CustomEase.create('silk', '0.19, 1, 0.22, 1');
 
 gsap.defaults({ ease: 'main', duration: 0.8 });
 
