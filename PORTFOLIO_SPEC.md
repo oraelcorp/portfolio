@@ -60,7 +60,7 @@ Exactamente qué secciones existen debajo del fold, sus timings precisos y si el
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Bundler         | **Vite 5+** (plantilla `vanilla-ts`)                                                                                                  | Cero framework overhead; el sitio de referencia es DOM puro. Javier está en Phase 1 de su roadmap (DOM/eventos) y esto es directamente transferible |
 | Lenguaje        | **TypeScript** strict                                                                                                                 | Claude Code produce menos errores con tipos; el portafolio muestra rigor                                                                            |
-| Animación       | **GSAP 3.13+** (`gsap`, `gsap/ScrollTrigger`, `gsap/SplitText`, `gsap/CustomEase`, `gsap/Flip`)                                       | Todos los plugins son gratuitos desde 2025 — **NO** crear `.npmrc` con token de GreenSock, no usar `npm.greensock.com`. Instalar solo `npm i gsap`  |
+| Animación       | **GSAP 3.13+** (`gsap`, `gsap/ScrollTrigger`, `gsap/SplitText`, `gsap/CustomEase`, `gsap/ScrambleTextPlugin`)                                       | Todos los plugins son gratuitos desde 2025 — **NO** crear `.npmrc` con token de GreenSock, no usar `npm.greensock.com`. Instalar solo `npm i gsap`  |
 | Smooth scroll   | **Lenis** (`lenis`) — sincronizado con GSAP ticker                                                                                    | Es literalmente lo que usa el sitio de referencia                                                                                                   |
 | ASCII / efectos | **Canvas 2D** primero; **Three.js** en la Fase 8 opcional                                                                             | La Fase 0 midió que el ASCII de la referencia **es WebGL** (shader con atlas de glifos), no un "opcional": igualarlo 1:1 exige WebGL. Canvas 2D llega muy cerca y es depurable, así que se construye en 2D y la paridad exacta queda como Fase 8 |
 | Estilos         | **CSS moderno** (custom properties, `clamp()`, container queries, `@layer`) en archivos `.css` por componente. Sin Tailwind, sin Sass | Control total del layout y evita clases genéricas que se ven "template"                                                                             |
@@ -126,7 +126,7 @@ javier-portfolio/
 │   ├── components/
 │   │   ├── Nav.ts
 │   │   ├── Menu.ts                # panel desplegable (§6.2), no overlay fullscreen
-│   │   ├── MagneticButton.ts
+│   │   ├── CtaButton.ts           # relevo del "+" y scramble del label (§6.5)
 │   │   ├── SplitReveal.ts         # revelado de texto (SplitText con autoSplit)
 │   │   ├── Marquee.ts
 │   │   └── Counter.ts             # odómetro por dígito (Stats, §6.10)
@@ -361,12 +361,27 @@ Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `
 - Botones: `y: 20` + opacity, stagger 0.1, después del sub-copy.
 - Botones `.btn`: `mono uppercase 0.75rem ls .08em`, `padding 14px 20px`, fondo `--accent`, texto `--accent-ink`, sin radius. El "+" es `.btn--icon` cuadrado del mismo alto (44 px). Hover: fondo `--accent-hover` + el texto hace un **slide vertical** (dos copias del label en un contenedor `overflow:hidden`, la superior sube `-100%` y la inferior entra). Link "Tell me more": subrayado 1 px que se retrae y vuelve a crecer desde la izquierda en hover (`scaleX` con `transform-origin` alternado).
 
-### 6.5 Feedback de los botones (`MagneticButton.ts`)
+### 6.5 Feedback de los botones (`components/CtaButton.ts`)
 
 **Corregido en Fase 0/2 (diff.md §B7):** la referencia **no tiene cursor custom** — el puntero es el nativo y el feedback de hover se hace con scrambles, bullets cuadrados y la pill "VIEW PROJECT". `core/cursor.ts` se elimina del proyecto.
 
-- El magnetismo se midió como **inexistente** en la referencia (`recon/nav-behavior.json`: el `transform` del CTA es `none` en reposo, cerca y encima). Su estado depende de la decisión vigente en `CLAUDE.md › Decisiones`.
-- Si está activo: en `pointermove` dentro de un área de `1.6×` el botón se traslada `(dx, dy) * 0.35` con `gsap.quickTo` (`duration 0.6, ease: main`), **acotado a 14 px** (sin tope el label se sale de la caja en un CTA ancho); al salir vuelve a 0 con `elastic.out(1, 0.4)`. El contenido interior se mueve `* 0.15` adicional, acotado a 5 px.
+**Sin magnetismo.** Medido en la Fase 2 (`recon/nav-behavior.json`): el `transform` del CTA de la referencia es `none` en reposo, cerca y encima. Estuvo implementado entre el 2026-09-02 y el 2026-09-04 como diferenciador; Javier lo revirtió tras verlo en vídeo. **`MagneticButton.ts` ya no existe.** Ver `CLAUDE.md › Decisiones` para el historial completo, que es lo que evita que alguien lo reponga leyendo una versión antigua del documento.
+
+**El relevo del "+", MEDIDO** (`scripts/recon-cta.ts` → `recon/cta-hover.json`). El "+" **no viaja** de un lado a otro: hay **dos**, uno por lado, y se hace el relevo. Es CSS puro, sin Flip ni JS.
+
+| | |
+| --- | --- |
+| "+" que sale | `transform-origin: right center`, de `rotate(0) scale(1)` a `rotate(-45deg) scale(0)` |
+| "+" que entra | `transform-origin: left center`, de `rotate(-45deg) scale(0)` a `rotate(0) scale(1)` |
+| label | de `translateX(-(alto + 6px))` a `translateX(0)` |
+| transición | **0.7 s · `cubic-bezier(0.83, 0, 0.17, 1)`**, solo sobre `transform` |
+| geometría | "+" cuadrado del alto del botón, `gap: 6px` |
+
+Esa curva resulta ser **exactamente el ease `wipe`** que ya se había medido en el preloader (§6.1) — la referencia usa la misma en los dos sitios.
+
+**El texto scramblea, y el destello lo acompaña.** Medido: el label hace un `ScrambleText` que resuelve de izquierda a derecha (21 estados en la referencia, 17 en el nuestro) **sin cambiar de color**. El aclarado a blanco es una petición de Javier; se monta como un degradado recortado al texto (`background-clip: text`) cuya **posición** se anima — una custom property sin `@property` no interpola. Va a la misma duración y curva que el relevo, de modo que el destello viaja pegado al frente de resolución del scramble en vez de ir por su cuenta. Con `prefers-reduced-motion` no hay scramble.
+
+- El relevo responde también a `:focus-within`, para que llegue por teclado. La referencia solo reacciona a `:hover`.
 - Sin efectos de puntero en dispositivos táctiles ni con `prefers-reduced-motion`.
 
 ### 6.6 Clients / tech row (`sections/clients.ts`)
@@ -511,7 +526,7 @@ Objetivo: eliminar las suposiciones de §1.2.
 
 ### Fase 2 — Nav, menú, botones, preloader
 
-- `Nav.ts`, `Menu.ts`, `MagneticButton.ts`, `preloader.ts`, estilos de botones con hover slide. (Sin `cursor.ts`, §6.5. `Counter.ts` se mueve a la Fase 4 con Stats.)
+- `Nav.ts`, `Menu.ts`, `CtaButton.ts`, `preloader.ts`, estilos de botones. (Sin `cursor.ts` ni `MagneticButton.ts`, §6.5. `Counter.ts` se mueve a la Fase 4 con Stats.)
 - **Criterio:** preloader → hero handoff con overlap; menú abre/cierra con teclado y mouse; el nav cambia de color por sección; magnetismo suave sin jitter (verificar que no se acumule transform); todo desactivado con reduced-motion.
 
 ### Fase 3 — Retrato ASCII (Canvas 2D)

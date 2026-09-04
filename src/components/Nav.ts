@@ -3,7 +3,7 @@
 // DIFERENCIADORES INTENCIONALES de Javier (la referencia NO los hace, medido en recon/nav-behavior.json):
 // encogimiento a partir de 80 px y auto-hide/reaparición según la dirección del scroll (§6.2 original).
 
-import { gsap, ScrollTrigger, Flip } from '../core/gsap.ts';
+import { gsap, ScrollTrigger } from '../core/gsap.ts';
 import { prefersReducedMotion, type Module } from '../core/utils.ts';
 
 /** Punto del nav que decide el tema: su línea media. */
@@ -70,43 +70,11 @@ function initScrollBehavior(nav: HTMLElement): Module {
   };
 }
 
-/** Hover del CTA: [LABEL][+] ⇄ [+][LABEL], animado con Flip (observado en la referencia). */
-function initCtaSwap(group: HTMLElement): Module {
-  const items = [...group.children] as HTMLElement[];
-  const reduced = prefersReducedMotion();
-
-  const swap = (): void => {
-    if (reduced) {
-      group.classList.toggle('is-swapped');
-      return;
-    }
-    const state = Flip.getState(items);
-    group.classList.toggle('is-swapped');
-    Flip.from(state, { duration: 0.45, ease: 'main', absolute: true });
-  };
-
-  group.addEventListener('pointerenter', swap);
-  group.addEventListener('pointerleave', swap);
-
-  return {
-    destroy() {
-      group.removeEventListener('pointerenter', swap);
-      group.removeEventListener('pointerleave', swap);
-      gsap.killTweensOf(items);
-      group.classList.remove('is-swapped');
-    },
-  };
-}
-
 export function initNav(): Module {
   const nav = document.querySelector<HTMLElement>('[data-nav]');
   if (!nav) return { destroy() {} };
 
   const modules: Module[] = [initThemeSync(nav), initScrollBehavior(nav)];
-
-  for (const group of document.querySelectorAll<HTMLElement>('[data-swap]')) {
-    modules.push(initCtaSwap(group));
-  }
 
   return {
     destroy() {

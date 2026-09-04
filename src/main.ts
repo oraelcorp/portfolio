@@ -6,7 +6,7 @@ import { initLenis, scrollToTarget } from './core/lenis.ts';
 import { initPreloader } from './core/preloader.ts';
 import { initNav } from './components/Nav.ts';
 import { initMenu } from './components/Menu.ts';
-import { initMagnetic } from './components/MagneticButton.ts';
+import { initCtaButtons } from './components/CtaButton.ts';
 import { initMarquee } from './components/Marquee.ts';
 import { initCounters } from './components/Counter.ts';
 import { initAscii } from './sections/hero.ts';
@@ -53,7 +53,7 @@ function boot(): void {
     initAnchors(),
     initNav(),
     initMenu(),
-    initMagnetic(),
+    initCtaButtons(),
     // El retrato espera a que el preloader salga del todo para su barrido (§6.3 punto 9)
     initAscii(preloader.done),
     // El texto del hero entra ANTES, mientras el overlay se va (§6.1)

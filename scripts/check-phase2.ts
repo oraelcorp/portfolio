@@ -1,5 +1,5 @@
 // scripts/check-phase2.ts — verifica los criterios de aceptación de la Fase 2 (§9) en el sitio real:
-// preloader, menú (mouse + teclado + Esc + foco), tema del nav por sección, swap del CTA y reduced-motion.
+// preloader, menú (mouse + teclado + Esc + foco), tema del nav por sección, relevo del CTA y reduced-motion.
 // Uso: npm run build && node scripts/check-phase2.ts
 
 import { chromium } from 'playwright';
@@ -169,35 +169,43 @@ async function testMenuAndNav(browser: Browser): Promise<void> {
   await page.keyboard.press('Escape');
   await sleep(800);
 
-  // --- Hover del CTA: swap de posición + slide del label
-  const ctaBefore = await page.evaluate(() => {
-    const g = document.querySelector<HTMLElement>('.nav__cta')!;
-    const icon = g.querySelector<HTMLElement>('.btn--icon')!;
-    const label = g.querySelector<HTMLElement>('.btn:not(.btn--icon)')!;
-    return {
-      iconX: Math.round(icon.getBoundingClientRect().x),
-      labelX: Math.round(label.getBoundingClientRect().x),
-    };
-  });
-  await page.hover('.nav__cta .btn:not(.btn--icon)');
-  await sleep(700);
-  const ctaAfter = await page.evaluate(() => {
-    const g = document.querySelector<HTMLElement>('.nav__cta')!;
-    const icon = g.querySelector<HTMLElement>('.btn--icon')!;
-    const label = g.querySelector<HTMLElement>('.btn:not(.btn--icon)')!;
-    return {
-      iconX: Math.round(icon.getBoundingClientRect().x),
-      labelX: Math.round(label.getBoundingClientRect().x),
-    };
-  });
+  // --- Hover del CTA: relevo entre los DOS "+" (medido en la referencia, item 3).
+  // Ningún "+" viaja: el de la derecha encoge a 0 y el de la izquierda crece de 0 a 1.
+  const ctaScales = () =>
+    page.evaluate(() => {
+      const g = document.querySelector<HTMLElement>('.nav__cta')!;
+      const norm = (sel: string): number => {
+        const m = new DOMMatrixReadOnly(getComputedStyle(g.querySelector<HTMLElement>(sel)!).transform);
+        return Math.round(Math.hypot(m.a, m.b) * 100) / 100;
+      };
+      const lab = new DOMMatrixReadOnly(
+        getComputedStyle(g.querySelector<HTMLElement>('.btn--label')!).transform,
+      );
+      return { inS: norm('.btn--icon-in'), outS: norm('.btn--icon-out'), labX: Math.round(lab.m41) };
+    });
+
+  const ctaBefore = await ctaScales();
+  await page.hover('.nav__cta .btn--label');
+  await sleep(900);
+  const ctaAfter = await ctaScales();
   await page.screenshot({
     path: join(OUT, 'cta-hover.png'),
     clip: { x: 1000, y: 0, width: 440, height: 110 },
   });
   check(
-    'el CTA intercambia el "+" y el label en hover',
-    ctaBefore.iconX > ctaBefore.labelX && ctaAfter.iconX < ctaAfter.labelX,
-    `antes +${ctaBefore.iconX}/label${ctaBefore.labelX} · después +${ctaAfter.iconX}/label${ctaAfter.labelX}`,
+    'en reposo solo se ve el "+" de la derecha',
+    ctaBefore.inS < 0.05 && ctaBefore.outS > 0.95,
+    `izq ${ctaBefore.inS} · der ${ctaBefore.outS}`,
+  );
+  check(
+    'en hover se hace el relevo: crece el izquierdo y encoge el derecho',
+    ctaAfter.inS > 0.95 && ctaAfter.outS < 0.05,
+    `izq ${ctaAfter.inS} · der ${ctaAfter.outS}`,
+  );
+  check(
+    'y el label se desliza al hueco que queda',
+    ctaBefore.labX < -20 && Math.abs(ctaAfter.labX) < 2,
+    `label de ${ctaBefore.labX}px a ${ctaAfter.labX}px`,
   );
 
   await page.mouse.move(700, 600);
@@ -237,12 +245,17 @@ async function testMenuAndNav(browser: Browser): Promise<void> {
   await ctx.close();
 }
 
-/** Diferenciadores intencionales de Javier: magnetismo + encogimiento/auto-hide del nav. */
-async function testMagneticAndScrollNav(browser: Browser): Promise<void> {
-  console.log('\n== Magnetismo y comportamiento de scroll del nav');
+/**
+ * El magnetismo se REVIRTIÓ el 2026-09-04 por decisión de Javier (ver CLAUDE.md › Decisiones):
+ * la medición original decía que la referencia no lo tiene, y él lo confirmó viéndolo en vídeo.
+ * Aquí se comprueba justo lo contrario que antes: que el CTA NO persigue al puntero.
+ * El encogimiento y el auto-hide del nav sí siguen siendo diferenciadores suyos.
+ */
+async function testNoMagnetismAndScrollNav(browser: Browser): Promise<void> {
+  console.log('\n== El CTA ya no persigue al puntero · comportamiento de scroll del nav');
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
-  watchErrors(page, 'magnetic');
+  watchErrors(page, 'cta');
 
   await page.goto(URL, { waitUntil: 'load' });
   await page.waitForFunction(() => !document.querySelector('[data-preloader]'), null, { timeout: 10_000 });
@@ -259,40 +272,28 @@ async function testMagneticAndScrollNav(browser: Browser): Promise<void> {
     return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height };
   });
 
-  // Puntero dentro del área activa (1.6×) pero fuera del botón
+  // Puntero cerca del botón, donde antes tiraba de él
   await page.mouse.move(box.cx - box.w * 0.6, box.cy, { steps: 20 });
   await sleep(700);
-  const pulled = await groupTranslate();
-  check('el CTA se desplaza hacia el puntero', Math.abs(pulled.x) > 3, JSON.stringify(pulled));
+  const near = await groupTranslate();
+  check(
+    'el CTA no se desplaza hacia el puntero al acercarse',
+    Math.abs(near.x) < 1.5 && Math.abs(near.y) < 1.5,
+    JSON.stringify(near),
+  );
+
+  // Y encima tampoco
+  await page.mouse.move(box.cx, box.cy, { steps: 12 });
+  await sleep(700);
+  const over = await groupTranslate();
+  check('ni con el puntero encima', Math.abs(over.x) < 1.5 && Math.abs(over.y) < 1.5, JSON.stringify(over));
   await page.screenshot({
-    path: join(OUT, 'magnetic-pulled.png'),
+    path: join(OUT, 'cta-no-magnet.png'),
     clip: { x: 1000, y: 0, width: 440, height: 120 },
   });
 
-  // Fuera del área: vuelve a su sitio
   await page.mouse.move(300, 700, { steps: 20 });
-  await sleep(1400);
-  const released = await groupTranslate();
-  check(
-    'vuelve a su posición al salir',
-    Math.abs(released.x) < 1.5 && Math.abs(released.y) < 1.5,
-    JSON.stringify(released),
-  );
-
-  // Criterio §9: el transform NO se acumula tras varias entradas/salidas
-  for (let i = 0; i < 5; i++) {
-    await page.mouse.move(box.cx - box.w * 0.6, box.cy, { steps: 6 });
-    await sleep(180);
-    await page.mouse.move(300, 700, { steps: 6 });
-    await sleep(180);
-  }
-  await sleep(1500);
-  const afterCycles = await groupTranslate();
-  check(
-    'el transform no se acumula tras 5 ciclos',
-    Math.abs(afterCycles.x) < 1.5 && Math.abs(afterCycles.y) < 1.5,
-    JSON.stringify(afterCycles),
-  );
+  await sleep(900);
 
   // --- Encogimiento a los 80 px
   const padTop = () =>
@@ -389,7 +390,7 @@ async function main(): Promise<void> {
 
     await testPreloader(browser);
     await testMenuAndNav(browser);
-    await testMagneticAndScrollNav(browser);
+    await testNoMagnetismAndScrollNav(browser);
     await testReducedMotion(browser);
 
     await browser.close();

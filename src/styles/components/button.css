@@ -1,15 +1,14 @@
 /* button.css — botón mono + botón cuadrado "+" (§6.4). Fase 1 (sin hover animado: eso es Fase 2). */
 
 @layer components {
+  /* Relevo del "+" MEDIDO en la referencia (scripts/recon-cta.ts): gap 6 px, 0.7 s y
+     cubic-bezier(0.83, 0, 0.17, 1) — que resulta ser el mismo ease `wipe` que ya habíamos
+     medido en el preloader. No hay un "+" que viaje: hay dos, y se hace el relevo. */
   .btn-group {
+    position: relative;
     display: inline-flex;
-    gap: 4px; /* el gap exacto que separa el CTA del "+" en la referencia */
+    gap: 6px;
     align-items: stretch;
-  }
-
-  /* Hover del CTA: el "+" y el label intercambian posición (Flip lo anima) */
-  .btn-group.is-swapped {
-    flex-direction: row-reverse;
   }
 
   .btn {
@@ -42,35 +41,75 @@
     width: var(--btn-h);
     padding: 0;
     font-size: 1.125rem;
+    /* Solo `transform`, como la referencia: nada de animar layout */
+    transition: transform var(--dur-cta) var(--ease-cta);
   }
 
-  /* Slide vertical del label en hover: dos copias, la de arriba sube y entra la de abajo (§6.4) */
-  .btn__slide {
-    position: relative;
-    display: block;
-    height: 1em;
-    overflow: hidden;
+  /* En reposo: el de la izquierda plegado sobre su borde izquierdo, el de la derecha visible.
+     Cada uno pivota sobre el borde por el que "sale", de ahí los orígenes opuestos. */
+  .btn--icon-in {
+    transform-origin: left center;
+    transform: rotate(-45deg) scale(0);
   }
 
-  .btn__label {
-    display: block;
-    transition: transform var(--dur-fast) var(--ease-out);
+  .btn--icon-out {
+    transform-origin: right center;
+    transform: rotate(0deg) scale(1);
   }
 
-  .btn__label--ghost {
-    position: absolute;
-    inset: 0;
-    transform: translateY(100%);
+  /* El label arranca corrido sobre el hueco que deja el "+" izquierdo plegado. */
+  .btn--label {
+    transform: translateX(calc(-1 * (var(--btn-h) + 6px)));
+    transition: transform var(--dur-cta) var(--ease-cta);
   }
 
-  .btn:hover .btn__label,
-  .btn:focus-visible .btn__label {
-    transform: translateY(-100%);
+  /* Y en hover se intercambian los papeles. `:focus-within` para que también ocurra
+     al llegar por teclado, que en la referencia no pasa. */
+  .btn-group:hover .btn--icon-in,
+  .btn-group:focus-within .btn--icon-in {
+    transform: rotate(0deg) scale(1);
   }
 
-  .btn:hover .btn__label--ghost,
-  .btn:focus-visible .btn__label--ghost {
-    transform: translateY(0);
+  .btn-group:hover .btn--icon-out,
+  .btn-group:focus-within .btn--icon-out {
+    transform: rotate(-45deg) scale(0);
+  }
+
+  .btn-group:hover .btn--label,
+  .btn-group:focus-within .btn--label {
+    transform: translateX(0);
+  }
+
+  /* Destello que barre el texto de izquierda a derecha, en sincronía con el scramble.
+     La referencia solo scramblea (medido: 21 estados, sin cambio de color); el aclarado es
+     una petición de Javier. Se monta como un degradado recortado al texto y se anima su
+     posición, que sí interpola de forma nativa — una custom property sin `@property` no.
+     El slide vertical de dos copias que había antes se retira: competía con el scramble. */
+  .btn__text {
+    display: inline-block;
+    background-image: linear-gradient(
+      90deg,
+      var(--btn-sweep) 0%,
+      var(--btn-sweep) 42%,
+      var(--btn-ink) 58%,
+      var(--btn-ink) 100%
+    );
+    background-position: 100% 0;
+    background-size: 230% 100%;
+    transition: background-position var(--dur-cta) var(--ease-cta);
+  }
+
+  @supports (background-clip: text) {
+    .btn__text {
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+  }
+
+  .btn-group:hover .btn__text,
+  .btn-group:focus-within .btn__text {
+    background-position: 0 0;
   }
 
   /* Variante de texto con subrayado animado ("Tell me more") */

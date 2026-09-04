@@ -23,17 +23,18 @@ function placeholder(label: string, cls = ''): string {
   return `<div class="ph ${cls}"><span class="ph__label">${esc(label)}</span></div>`;
 }
 
-/** Label con dos copias apiladas: el hover desliza la de arriba y entra la de abajo (§6.4). */
-function slideLabel(label: string): string {
-  const text = esc(label);
-  return `<span class="btn__slide"><span class="btn__label">${text}</span><span class="btn__label btn__label--ghost" aria-hidden="true">${text}</span></span>`;
-}
-
+/**
+ * CTA con el relevo del "+" medido en la referencia (§6.5): hay DOS iconos, uno a cada lado.
+ * En reposo el izquierdo está encogido a 0 y el derecho visible; en hover se intercambian
+ * encogiendo y girando cada uno sobre su propio borde, y el label se desliza al hueco.
+ * Los dos "+" son decorativos: el enlace real es el label.
+ */
 function button(label: string, url: string, extra = ''): string {
   return `
-    <span class="btn-group" data-swap data-magnetic>
-      <a class="btn" href="${href(url)}"${extra}><span data-magnetic-inner>${slideLabel(label)}</span></a>
-      <a class="btn btn--icon" href="${href(url)}" aria-hidden="true" tabindex="-1">+</a>
+    <span class="btn-group" data-cta>
+      <span class="btn btn--icon btn--icon-in" aria-hidden="true">+</span>
+      <a class="btn btn--label" href="${href(url)}"${extra}><span class="btn__text" data-cta-text>${esc(label)}</span></a>
+      <span class="btn btn--icon btn--icon-out" aria-hidden="true">+</span>
     </span>`;
 }
 
@@ -66,9 +67,10 @@ function nav(): string {
       <span class="nav__burger" aria-hidden="true"><span></span><span></span></span>
     </button>
 
-    <div class="nav__cta btn-group" data-swap data-magnetic>
-      <a class="btn" href="${esc(site.nav.cta.href)}"><span data-magnetic-inner>${slideLabel(site.nav.cta.label)}</span></a>
-      <a class="btn btn--icon" href="${esc(site.nav.cta.href)}" aria-hidden="true" tabindex="-1">+</a>
+    <div class="nav__cta btn-group" data-cta>
+      <span class="btn btn--icon btn--icon-in" aria-hidden="true">+</span>
+      <a class="btn btn--label" href="${esc(site.nav.cta.href)}"><span class="btn__text" data-cta-text>${esc(site.nav.cta.label)}</span></a>
+      <span class="btn btn--icon btn--icon-out" aria-hidden="true">+</span>
     </div>
   </header>
 
