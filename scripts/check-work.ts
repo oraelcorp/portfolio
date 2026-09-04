@@ -115,7 +115,10 @@ async function main(): Promise<void> {
             my,
             fx: Math.round(fm.e * 10) / 10,
             fy: Math.round(fm.f * 10) / 10,
-            rot: Math.round(Math.atan2(pm.b, pm.a) * (180 / Math.PI) * 100) / 100,
+            // Descomposición polar: aísla la rotación real e ignora la deformación simétrica
+            // del genie. Con atan2(b, a) el estiramiento direccional se colaba como giro y
+            // el balanceo aparentaba 69° cuando el código lo acota a 16°.
+            rot: Math.round(Math.atan2(pm.b - pm.c, pm.a + pm.d) * (180 / Math.PI) * 100) / 100,
             op: Number(getComputedStyle(pill).opacity),
             sx: Math.round(Math.hypot(pm.a, pm.b) * 1000) / 1000,
             sy: Math.round(Math.hypot(pm.c, pm.d) * 1000) / 1000,
@@ -186,8 +189,54 @@ async function main(): Promise<void> {
   check(
     'a medio desplegar el cartel está achatado, no escalado por igual',
     near.sy < near.sx * 0.85,
-    `scaleX ${near.sx} · scaleY ${near.sy}`,
+    `viniendo de la IZQUIERDA: scaleX ${near.sx} · scaleY ${near.sy} → cinta horizontal`,
   );
+
+  // --- LO DECISIVO: el eje del despliegue no es fijo. Viniendo desde ARRIBA, la cinta tiene
+  // que ser VERTICAL. Si el eje estuviera clavado en horizontal, saldría igual que arriba.
+  await page.mouse.move(20, 40, { steps: 25 }); // alejarse para replegar y reiniciar el origen
+  await sleep(900);
+  await page.mouse.move(cx, fig.y - 200, { steps: 20 });
+  await sleep(500);
+  await page.mouse.move(cx, fig.y - 26, { steps: 40 }); // bajar en vertical hacia la figura
+  await sleep(300);
+  const fromTop = await pillNow();
+  check(
+    'viniendo desde ARRIBA la cinta se tiende en vertical, no en horizontal',
+    fromTop.sx < fromTop.sy * 0.85,
+    `scaleX ${fromTop.sx} · scaleY ${fromTop.sy} → cinta vertical`,
+  );
+
+  // --- Y en diagonal el eje queda girado: la matriz tiene términos cruzados no nulos.
+  await page.mouse.move(20, 40, { steps: 25 });
+  await sleep(900);
+  await page.mouse.move(fig.x - 190, fig.y - 190, { steps: 20 });
+  await sleep(500);
+  await page.mouse.move(fig.x - 26, fig.y - 26, { steps: 40 }); // entrar por la esquina
+  await sleep(300);
+  const diag = await page.evaluate(() => {
+    const p = document.querySelector<HTMLElement>('.work__pill');
+    if (!p) return { b: 0, c: 0, op: -1 };
+    const m = new DOMMatrixReadOnly(getComputedStyle(p).transform);
+    return {
+      b: Math.round(m.b * 1000) / 1000,
+      c: Math.round(m.c * 1000) / 1000,
+      op: Number(getComputedStyle(p).opacity),
+    };
+  });
+  check(
+    'en diagonal el eje del genie queda girado (matriz con términos cruzados)',
+    Math.abs(diag.b) > 0.1 && Math.abs(diag.c) > 0.1,
+    `b ${diag.b} · c ${diag.c} · opacidad ${diag.op.toFixed(2)}`,
+  );
+
+  // Volver a la izquierda para que el resto de la medición siga el trayecto comparable.
+  await page.mouse.move(20, 40, { steps: 25 });
+  await sleep(900);
+  await page.mouse.move(fig.x - 400, cy, { steps: 20 });
+  await sleep(400);
+  await page.mouse.move(fig.x - 30, cy, { steps: 40 });
+  await sleep(300);
 
   await page.mouse.move(cx, cy, { steps: 40 }); // entrar
   await sleep(600);
@@ -289,11 +338,18 @@ async function main(): Promise<void> {
     `mediana ${med.toFixed(1)} px`,
   );
 
+  // El balanceo puro está acotado a 16° en el código. Lo que se mide aquí puede superarlo:
+  // combinar dos estiramientos sobre ejes distintos (despliegue y velocidad) introduce por sí
+  // mismo una componente de rotación, porque dos matrices simétricas no conmutan. Por eso este
+  // número NO es comparable con los 14.1° de la referencia, que no tiene genie: solo se
+  // comprueba que hay balanceo y que no se dispara.
   const maxRot = Math.max(...frames.map((f) => Math.abs(f.rot)));
+  const settled = frames.filter((f) => f.op > 0.98 && Math.abs(f.sx - f.sy) < 0.05);
+  const pureSwing = Math.max(0, ...settled.map((f) => Math.abs(f.rot)));
   check(
-    'el cartel se balancea al moverse rápido',
-    maxRot > 4,
-    `rotación máxima ${maxRot.toFixed(1)}° (referencia: 14.1°)`,
+    'el cartel se balancea al moverse, sin dispararse',
+    maxRot > 4 && maxRot < 35,
+    `giro aparente máx ${maxRot.toFixed(1)}° · balanceo puro (sin deformar) ${pureSwing.toFixed(1)}° · tope del código 16°`,
   );
 
   // Genie en movimiento: al desplazarse en horizontal debe estirarse en X y comprimirse en Y.

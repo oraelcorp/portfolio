@@ -1,15 +1,56 @@
 // src/sections/work.ts — showcase: la pill "VIEW PROJECT" acompaña al cursor y el marcador
 // de pestañas cae al proyecto activo (§6.7). Fase 4; reescrito con la referencia medida.
 //
-// La pill se midió en good-fella (scripts/recon-work.ts → recon/work-behavior.json): es UN
-// seguidor `position: fixed` en coordenadas de viewport, que NO se desmonta al salir de la
-// figura, con el cartel colgando 32 px por encima del cursor y balanceándose 0.0995° por cada
-// píxel de desfase horizontal. Esa arquitectura es además la que arregla el bug de que la pill
-// se quedaba pegada al borde: antes vivía dentro de cada figura en coordenadas locales y los
-// tweens de opacidad con `overwrite: true` mataban los `quickTo` de posición.
+// La pill se midió en good-fella (scripts/recon-work.ts y recon-pill-box.ts): es UN seguidor
+// `position: fixed` en coordenadas de viewport, que NO se desmonta al salir de la figura, con
+// el cartel de 111.56 × 28.6 px colgando 11.4 px por encima del cursor y balanceándose 0.0995°
+// por cada píxel de desfase horizontal. Esa arquitectura es además la que arregla el bug de que
+// la pill se quedaba pegada al borde: antes vivía dentro de cada figura en coordenadas locales
+// y los tweens de opacidad con `overwrite: true` mataban los `quickTo` de posición.
 
 import { gsap, ScrollTrigger } from '../core/gsap.ts';
 import { isTouch, prefersReducedMotion, type Module } from '../core/utils.ts';
+
+/** Parte lineal de una transformación 2D, en el orden de `matrix(a, b, c, d, …)` de CSS. */
+interface Mat {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+}
+
+const IDENTITY: Mat = { a: 1, b: 0, c: 0, d: 1 };
+
+/**
+ * Estira `along` a lo largo de un eje girado `angle` y `perp` en su perpendicular: R·S·Rᵀ.
+ * Es una escala anisótropa sobre un eje ARBITRARIO, que es lo que `scaleX`/`scaleY` no saben
+ * hacer sin dejar el elemento girado. La matriz sale simétrica, así que no introduce rotación.
+ */
+function axisScale(angle: number, along: number, perp: number): Mat {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const cc = c * c;
+  const ss = s * s;
+  const cross = (along - perp) * s * c;
+  return { a: along * cc + perp * ss, b: cross, c: cross, d: along * ss + perp * cc };
+}
+
+/** Rotación pura, en el mismo formato. */
+function rotation(angle: number): Mat {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return { a: c, b: s, c: -s, d: c };
+}
+
+/** Producto de dos matrices en convención CSS: [[a, c], [b, d]]. */
+function mul(m: Mat, n: Mat): Mat {
+  return {
+    a: m.a * n.a + m.c * n.b,
+    b: m.b * n.a + m.d * n.b,
+    c: m.a * n.c + m.c * n.d,
+    d: m.b * n.c + m.d * n.d,
+  };
+}
 
 /** Grados de balanceo por píxel de desfase horizontal (ajuste medido: 0.0995, RMS 1.76°). */
 const SWING_PER_PX = 0.0995;
@@ -22,13 +63,15 @@ const SWING_MAX = 16;
  */
 const APPROACH = 80;
 
-/** Cuánto se ensancha el cartel cuando está plegado, al principio y al final del genie. */
+/** Cuánto se alarga el cartel a lo largo de su eje cuando está plegado. */
 const GENIE_SPREAD = 0.38;
 /** Estiramiento por píxel de velocidad del seguidor, y su tope. */
 const GENIE_PER_PX = 0.006;
 const GENIE_MAX = 0.3;
 /** Cuánto comprime el eje perpendicular al que se estira. */
 const SQUASH_RATIO = 0.6;
+/** Desplazamiento mínimo, en px, para que el eje del genie tenga una dirección con sentido. */
+const AXIS_MIN = 10;
 /**
  * Retardo del seguimiento, ajustado contra la referencia (mediana 15.8 px, p95 80.9 px con
  * un trayecto idéntico). Con `power3` a 0.5 s salía el doble de flojo: esa curva da un tirón
@@ -155,10 +198,18 @@ export function initWork(): Module {
 
   if (follower && pill && !reduced && !isTouch()) {
     follower.dataset.ready = '';
-    // `opacity` y no `autoAlpha`: quickTo no llega a aplicar el atajo de autoAlpha y la pill
-    // se quedaba invisible con `visibility: hidden` puesto por el set inicial (medido).
-    // Arranca plegada: ancha y sin altura, que es el estado de partida del genie.
-    gsap.set(pill, { xPercent: -50, opacity: 0, scaleX: 1 + GENIE_SPREAD, scaleY: 0 });
+    // El transform de la pill se escribe entero a mano, sin pasar por GSAP: el genie es una
+    // matriz completa (escala sobre un eje arbitrario) y `scaleX`/`scaleY` no pueden
+    // expresarla sin dejar el cartel girado. Mezclar escrituras crudas con la caché de
+    // transformaciones de GSAP sobre el mismo elemento daría resultados según quién escriba
+    // último, así que aquí GSAP no toca la pill: solo el seguidor.
+    const paint = (m: Mat, alpha: number): void => {
+      pill.style.opacity = alpha.toFixed(3);
+      pill.style.transform =
+        `translate(-50%, 0px) matrix(${m.a.toFixed(4)}, ${m.b.toFixed(4)}, ` +
+        `${m.c.toFixed(4)}, ${m.d.toFixed(4)}, 0, 0)`;
+    };
+    paint(axisScale(0, 1 + GENIE_SPREAD, 0), 0);
 
     const figures = previews
       .map((p) => p.querySelector<HTMLElement>('.work__figure'))
@@ -166,15 +217,6 @@ export function initWork(): Module {
 
     const toX = gsap.quickTo(follower, 'x', { duration: FOLLOW, ease: FOLLOW_EASE });
     const toY = gsap.quickTo(follower, 'y', { duration: FOLLOW, ease: FOLLOW_EASE });
-    // La posición vive en el seguidor y la apariencia en la pill: eso ya evitaba que un tween
-    // matara al otro. Además la pill no lleva tweens en absoluto — se escribe directamente
-    // desde el bucle con valores suavizados a mano, así el squash y el giro no pueden pelearse
-    // entre sí ni depender del orden en que GSAP los renderice.
-    const setAlpha = gsap.quickSetter(pill, 'opacity') as (v: number) => void;
-    const setSx = gsap.quickSetter(pill, 'scaleX') as (v: number) => void;
-    const setSy = gsap.quickSetter(pill, 'scaleY') as (v: number) => void;
-    const setRot = gsap.quickSetter(pill, 'rotation', 'deg') as (v: number) => void;
-
     let mx = -1;
     let my = -1;
     let seen = false;
@@ -187,6 +229,14 @@ export function initWork(): Module {
     let vy = 0;
     let unfold = 0;
     let rot = 0;
+    /** Punto desde el que el cartel se despliega: la última posición en la que estuvo plegado. */
+    let foldX = 0;
+    let foldY = 0;
+    /** Eje del despliegue, como vector unitario suavizado. Arranca horizontal. */
+    let axisX = 1;
+    let axisY = 0;
+    /** Si el eje ya se ha tomado en este despliegue. Ver la nota en el bucle. */
+    let axisSet = false;
 
     /** Distancia del cursor al borde de la figura más cercana. 0 = está dentro. */
     const distanceToFigures = (): number => {
@@ -233,28 +283,64 @@ export function initWork(): Module {
       // El cartel se balancea según lo que le falta por alcanzar en horizontal: es lo que
       // hace un objeto colgado del cursor, y es el modelo que ajusta la referencia.
       rot = smooth(rot, gsap.utils.clamp(-SWING_MAX, SWING_MAX, (mx - fx) * SWING_PER_PX), 90, dt);
-      setRot(rot);
 
       // Aparece progresivamente al acercarse, así entra en la figura ya en marcha en vez
       // de materializarse en el borde.
       const target = 1 - gsap.utils.clamp(0, 1, distanceToFigures() / APPROACH);
       unfold = smooth(unfold, target, 110, dt);
-      setAlpha(unfold);
 
-      // --- Genie: squash & stretch direccional, no un escalado parejo.
-      // 1) Al aparecer y al irse, el cartel se despliega: nace ancho y aplastado contra su
-      //    borde inferior (que es su pivote) y se abre hacia arriba, como el efecto del Dock.
-      let sx = 1 + GENIE_SPREAD * (1 - unfold);
-      let sy = Math.pow(unfold, 0.8);
+      // Mientras está plegado, el origen del genie es el propio cursor: así, en cuanto empieza
+      // a desplegarse, el vector origen→cursor apunta por donde ha venido.
+      if (unfold < 0.02) {
+        foldX = mx;
+        foldY = my;
+        axisSet = false;
+      }
 
-      // 2) Mientras se mueve, se estira en el eje del movimiento y se comprime en el otro.
-      const stretchX = gsap.utils.clamp(0, GENIE_MAX, Math.abs(vx) * GENIE_PER_PX);
-      const stretchY = gsap.utils.clamp(0, GENIE_MAX, Math.abs(vy) * GENIE_PER_PX);
-      sx *= 1 + stretchX - stretchY * SQUASH_RATIO;
-      sy *= 1 + stretchY - stretchX * SQUASH_RATIO;
+      // --- Genie: la MISMA escala direccional para las dos fases, en dos ejes distintos.
+      //
+      // 1) Despliegue. El eje no es fijo: es el vector desde el punto en el que el cartel
+      //    estaba plegado hasta donde está el cursor ahora. Plegado, el cartel es una cinta
+      //    fina TENDIDA A LO LARGO de ese vector, y se abre en su perpendicular — igual que
+      //    una ventana estirándose hacia el icono del Dock, venga de donde venga.
+      const ox = mx - foldX;
+      const oy = my - foldY;
+      const olen = Math.hypot(ox, oy);
+      if (olen > AXIS_MIN) {
+        const nx = ox / olen;
+        const ny = oy / olen;
+        if (!axisSet) {
+          // Primer eje de este despliegue: se toma tal cual. Suavizarlo desde el del pase
+          // anterior hacía que un acercamiento vertical saliera en diagonal, porque el eje
+          // seguía girando desde donde lo dejó la salida anterior y el despliegue dura menos
+          // de lo que tarda en converger. Plegado no hay nada en pantalla que continuar.
+          axisX = nx;
+          axisY = ny;
+          axisSet = true;
+        } else {
+          // Ya desplegándose: se suaviza el vector, no el ángulo, para no saltar en ±180°.
+          axisX = smooth(axisX, nx, 130, dt);
+          axisY = smooth(axisY, ny, 130, dt);
+          const n = Math.hypot(axisX, axisY) || 1;
+          axisX /= n;
+          axisY /= n;
+        }
+      }
+      const unfoldM = axisScale(
+        Math.atan2(axisY, axisX),
+        1 + GENIE_SPREAD * (1 - unfold),
+        Math.pow(unfold, 0.8),
+      );
 
-      setSx(gsap.utils.clamp(0.05, 1.8, sx));
-      setSy(gsap.utils.clamp(0, 1.8, sy));
+      // 2) Movimiento. Mismo cálculo, con el eje de la velocidad. Antes se hacía por
+      //    componentes X/Y, que en una diagonal se cancelaban entre sí.
+      const vlen = Math.hypot(vx, vy);
+      const stretch = gsap.utils.clamp(0, GENIE_MAX, vlen * GENIE_PER_PX);
+      const velM =
+        vlen > 0.5 ? axisScale(Math.atan2(vy, vx), 1 + stretch, 1 - stretch * SQUASH_RATIO) : IDENTITY;
+
+      // El balanceo va por fuera: deforma primero y el conjunto entero se columpia.
+      paint(mul(rotation((rot * Math.PI) / 180), mul(unfoldM, velM)), unfold);
     };
 
     // Solo mientras el showcase está a la vista: fuera de él no hay nada que seguir.
@@ -276,8 +362,10 @@ export function initWork(): Module {
           unfold = 0;
           vx = 0;
           vy = 0;
-          setAlpha(0);
-          setSy(0);
+          axisX = 1;
+          axisY = 0;
+          axisSet = false;
+          paint(axisScale(0, 1 + GENIE_SPREAD, 0), 0);
         }
       },
     });
@@ -287,9 +375,12 @@ export function initWork(): Module {
         st.kill();
         window.removeEventListener('pointermove', onMove);
         gsap.ticker.remove(frame);
-        gsap.killTweensOf([follower, pill]);
+        gsap.killTweensOf(follower);
         follower.removeAttribute('data-ready');
-        gsap.set([follower, pill], { clearProps: 'all' });
+        gsap.set(follower, { clearProps: 'all' });
+        // La pill no la gestiona GSAP: se limpian sus estilos en línea a mano.
+        pill.style.removeProperty('transform');
+        pill.style.removeProperty('opacity');
       },
     });
   }
