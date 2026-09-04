@@ -27,37 +27,35 @@
     padding-block: 1rem;
   }
 
-  /* Velo bajo la barra — DIFERENCIADOR, la referencia no lo tiene.
-     Medido: su nav es `!bg-transparent` sin backdrop-filter ni máscara, y deja que el
-     contenido colisione (cruza la franja del nav en 39 de 47 posiciones de scroll). Se lo
-     puede permitir porque su rejilla deja el centro casi vacío y sus tres zonas son robustas.
-     Nuestra sección de stack sí pone texto en el centro, justo sobre "MENU".
-     Solución acotada: transparencia TOTAL arriba del todo, donde el hero no tiene nada
-     debajo, y el velo solo a partir de los 80 px, en el color del tema vigente. */
+  /* Scrim bajo la barra — DIFERENCIADOR, la referencia no lo tiene.
+     Medido (scripts/recon-nav-overlap.ts): su nav es `!bg-transparent`, sin backdrop-filter
+     ni máscara, y deja que el contenido colisione — cruza la franja de su nav en 39 de 47
+     posiciones de scroll. Se lo puede permitir porque su rejilla deja el centro casi vacío;
+     nuestra sección de stack sí pone titular ahí.
+
+     Decisión de Javier: scrim SIEMPRE presente (nada de transparencia total), sutil, con un
+     desenfoque leve, conservando la sensación de flotante. El tinte usa `--surface` del tema
+     vigente y no un negro fijo: sobre las secciones claras el texto del nav es oscuro, y un
+     velo negro le QUITARÍA contraste en vez de dárselo.
+
+     El grueso del trabajo lo hace el desenfoque, no la opacidad: destruye la alta frecuencia
+     que es la que hace que el texto de detrás compita con el del nav. La máscara desvanece
+     tinte y desenfoque a la vez — un degradado en el `background` solo desvanecería el tinte,
+     y el desenfoque se cortaría en seco al borde de la caja. */
   .nav::before {
     content: '';
     position: absolute;
     z-index: -1;
-    inset-block: 0 -60%;
+    inset-block: 0 -55%;
     inset-inline: 0;
     pointer-events: none;
-    opacity: 0;
-    /* Opaco sobre la franja donde vive el texto del nav y desvanecido solo por debajo:
-       con la primera versión (72 % al 55 %) el velo dejaba el titular "Tools." atenuado
-       pero perfectamente legible encima del wordmark. El desvanecido de abajo es lo que
-       evita que se lea como una barra sólida con borde. */
-    background-image: linear-gradient(
-      to bottom,
-      var(--surface) 0%,
-      color-mix(in srgb, var(--surface) 92%, transparent) 58%,
-      color-mix(in srgb, var(--surface) 45%, transparent) 78%,
-      transparent 100%
-    );
-    transition: opacity var(--dur-fast) var(--ease-out);
-  }
-
-  .nav[data-scrolled='true']::before {
-    opacity: 1;
+    background-color: color-mix(in srgb, var(--surface) var(--nav-scrim), transparent);
+    /* Sin `-webkit-backdrop-filter` a mano: esbuild ya prefija según `build.cssTarget`, y
+       escribirla DESPUÉS de la estándar hacía que el minificador se quedara solo con la
+       prefijada y tirara la buena — el desenfoque no se aplicaba y `backdropFilter` computaba
+       `none`. Se ve igual con `mask-image`, que sí sale bien prefijada sin tocar nada. */
+    backdrop-filter: blur(var(--nav-scrim-blur));
+    mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
   }
 
   /* Con el menú abierto el panel ya trae su propio fondo: el velo sobra. Se lee del estado

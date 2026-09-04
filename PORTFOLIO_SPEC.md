@@ -315,7 +315,9 @@ Orden en `index.html`: Preloader → Nav → **Hero → Stats → Process → Wo
 
 **Diferenciadores intencionales de Javier** (medidos como inexistentes en la referencia, ver `CLAUDE.md › Decisiones`): la barra encoge de 32 a 16 px de padding pasados los 80 px, y se oculta al bajar / reaparece al subir — nunca con el menú abierto ni con `prefers-reduced-motion`.
 
-**Velo bajo la barra, también diferenciador.** Medido: la referencia no tiene nada detrás de su nav y **deja que el contenido colisione** (cruza su franja en 39 de 47 posiciones de scroll). Aquí, en cambio, el nav es **totalmente transparente arriba del todo** y a partir de los 80 px aparece un degradado de `--surface` del tema vigente: opaco sobre la franja del texto y desvanecido por debajo, de modo que no se lea como una barra con borde. Se apaga con el menú abierto. Verificado con píxeles en el peor caso (el titular del stack cruzando el wordmark): la luminancia máxima del contenido de detrás baja de 238 a 35 y la desviación del fondo, de 89.1 a 6.1.
+**Scrim bajo la barra, también diferenciador.** Medido: la referencia no tiene nada detrás de su nav y **deja que el contenido colisione** (cruza su franja en 39 de 47 posiciones de scroll). Aquí hay un scrim **siempre presente**: 14 % de tinte de `--surface` del tema vigente más **12 px de `backdrop-filter`**, con una máscara que lo desvanece por debajo para conservar la sensación de flotante. El tinte sigue al tema y no es un negro fijo, porque sobre secciones claras el texto del nav es oscuro y un velo negro le quitaría contraste.
+
+El desenfoque hace casi todo el trabajo: en el peor caso medido (el titular del stack cruzando el wordmark, que sin nada llega a luminancia 238), 14 % de tinte a secas lo deja en 208, y con 12 px de blur baja a **99** — más de lo que se gana subiendo el tinte hasta el 40 %. Con eso el texto del nav queda en 5.5:1 contra el píxel más brillante de detrás. Coste medido: 0.0 % de frames con jank.
 
 ### 6.3 Hero — retrato ASCII (`effects/ascii/AsciiPortrait.ts`) — efecto principal
 

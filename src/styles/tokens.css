@@ -64,6 +64,10 @@
     --dur-fast: 0.3s;
     /* Relevo del "+" y barrido del texto del CTA: medidos en la referencia
        (scripts/recon-cta.ts). El ease coincide exactamente con el `wipe` del preloader. */
+    /* Scrim del nav (§6.2). Opacidad del tinte y radio del desenfoque: los dos se barren
+       en scripts/tune-nav-scrim.ts contra la legibilidad medida del texto del nav. */
+    --nav-scrim: 14%;
+    --nav-scrim-blur: 12px;
     --dur-cta: 0.7s;
     --ease-cta: cubic-bezier(0.83, 0, 0.17, 1);
     --dur-base: 0.8s;
