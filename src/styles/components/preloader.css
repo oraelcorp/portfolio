@@ -1,4 +1,7 @@
-/* preloader.css — overlay de acento con bloques + "LOADING" (recon: NO lleva contador). Fase 1: markup. */
+/* preloader.css — overlay de acento con los cuatro cuadrados que vuelcan + "LOADING". Fase 1: markup.
+   Geometría MEDIDA en la referencia (§6.1): pista de 70×16, bloques de 16 con huecos de 2.
+   Va en px y no en rem a propósito: el vuelco de 90° sobre la esquina desplaza el bloque
+   exactamente su propio ancho, así que la aritmética de la pista solo cuadra con medidas fijas. */
 
 @layer components {
   .preloader {
@@ -7,29 +10,57 @@
     inset: 0;
     display: grid;
     place-content: center;
-    gap: 0.5rem;
+    gap: 16px;
     justify-items: center;
     background-color: var(--accent);
     color: var(--accent-ink);
   }
 
-  .preloader[hidden] {
+  /* Visita repetida: el script en línea del <head> lo marca antes del primer paint. */
+  :root[data-preloaded='true'] .preloader {
     display: none;
   }
 
-  .preloader__blocks {
-    display: flex;
-    gap: 3px;
+  .preloader__track {
+    position: relative;
+    inline-size: 70px;
+    block-size: 16px;
+    /* El clip en X esconde los bloques que aún no han entrado; en Y se deja visible
+       para que la esquina sobresalga durante el giro. */
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .preloader__block {
-    width: 0.875rem;
-    height: 0.875rem;
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 16px;
+    block-size: 16px;
     background-color: var(--accent-ink);
-    opacity: 0.25;
+    /* El pivote del vuelco: girar 90° sobre esta esquina empuja el bloque 16px a la derecha. */
+    transform-origin: bottom right;
+    transform: translateX(-16px);
   }
 
   .preloader__label {
     color: var(--accent-ink);
+    /* En la referencia el label mide 67 px de ancho contra los 70 de la pista: van casi a
+       la misma medida, y esa relación es la que hace que el conjunto se lea como un bloque.
+       JetBrains Mono avanza 0.6 em por glifo, así que 7 caracteres a 16 px dan justo 67 px. */
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  /* Los caracteres aún sin resolver se leen más tenues que los ya fijados, como en la
+     referencia. ScrambleTextPlugin envuelve en .is-set el texto que ya llegó a su sitio,
+     pero deshace ese envoltorio al terminar: de ahí que el estado final se marque aparte. */
+  .preloader__scramble {
+    opacity: 0.45;
+  }
+
+  .preloader__scramble .is-set,
+  .preloader__scramble[data-resolved] {
+    opacity: 1;
   }
 }

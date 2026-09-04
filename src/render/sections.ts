@@ -398,11 +398,14 @@ function footer(): string {
 
 function preloader(): string {
   return `
-  <div class="preloader" data-preloader hidden>
-    <div class="preloader__blocks" aria-hidden="true">
-      ${[0, 1, 2].map(() => `<span class="preloader__block" data-block></span>`).join('')}
+  <div class="preloader" data-preloader>
+    <div class="preloader__track" aria-hidden="true">
+      ${[0, 1, 2, 3].map(() => `<span class="preloader__block" data-block></span>`).join('')}
     </div>
-    <p class="preloader__label t-mono-sm" role="status">Loading</p>
+    <p class="preloader__label t-mono-sm">
+      <span class="visually-hidden">Loading</span>
+      <span class="preloader__scramble" aria-hidden="true" data-loading-label>&nbsp;</span>
+    </p>
   </div>`;
 }
 

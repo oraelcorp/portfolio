@@ -73,7 +73,7 @@ async function main(): Promise<void> {
             tx.push(0);
             continue;
           }
-          const v = m[1].split(',').map(Number);
+          const v = (m[1] ?? '').split(',').map(Number);
           deg.push((Math.atan2(v[1] ?? 0, v[0] ?? 1) * 180) / Math.PI);
           tx.push(v[4] ?? 0);
         }

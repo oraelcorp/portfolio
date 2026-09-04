@@ -44,6 +44,10 @@ export interface AsciiOptions {
   stretch?: boolean;
   /** Origen de la onda de entrada, en fracción del grid. Por defecto, la cabeza del jaguar. */
   revealOrigin?: { x: number; y: number };
+  /** Duración del barrido, en segundos. Ajustable para poder compararlo sin recompilar. */
+  revealDuration?: number;
+  /** Curva del barrido. Ver la nota de REVEAL_EASE sobre por qué no usa "silk". */
+  revealEase?: string;
 }
 
 const ALPHA_STEPS = 8;
@@ -55,7 +59,13 @@ const SMOOTH_SS = 2;
 /** Grosor de la cresta de la onda de entrada, en celdas. */
 const WAVE_BAND = 7;
 /** Duración del barrido radial (§6.3 punto 9, ahora onda en vez de scanline). */
-const REVEAL_DURATION = 1.9;
+const REVEAL_DURATION = 3.2;
+/**
+ * "silk" (0.19,1,0.22,1) frena tantísimo que la cresta cruzaba el retrato en el primer cuarto
+ * del tiempo y el resto era un goteo de celdas sueltas: alargar la duración con esa curva solo
+ * alarga el goteo. Con power1.out la cresta avanza de forma legible durante todo el barrido.
+ */
+const REVEAL_EASE = 'power1.out';
 /** Curva de alpha de las celdas base: alpha = ALPHA_FLOOR + ALPHA_RANGE · L. */
 const ALPHA_FLOOR = 0.22;
 const ALPHA_RANGE = 0.5;
@@ -172,6 +182,8 @@ export class AsciiPortrait implements Module {
       stretch: false,
       // La cabeza del jaguar: de ahí sale la onda, como una piedra al caer al agua
       revealOrigin: { x: 0.28, y: 0.36 },
+      revealDuration: REVEAL_DURATION,
+      revealEase: REVEAL_EASE,
       ...rest,
       onModeChange: onModeChange ?? ((): void => {}),
     };
@@ -256,8 +268,8 @@ export class AsciiPortrait implements Module {
       { revealRadius: 0 },
       {
         revealRadius: this.maxRadius() + WAVE_BAND,
-        duration: REVEAL_DURATION,
-        ease: 'silk',
+        duration: this.opts.revealDuration,
+        ease: this.opts.revealEase,
         overwrite: true,
       },
     );

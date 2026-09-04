@@ -4,7 +4,7 @@
 
 import { chromium } from 'playwright';
 import type { Page } from 'playwright';
-import { spawn } from 'node:child_process';
+import { startPreview } from './lib/preview.ts';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -127,10 +127,7 @@ async function weigh(page: Page) {
 
 async function main(): Promise<void> {
   mkdirSync(OUT, { recursive: true });
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    stdio: 'ignore',
-    shell: process.platform === 'win32',
-  });
+  const preview = startPreview(PORT);
 
   try {
     for (let i = 0; i < 60; i++) {
@@ -204,7 +201,7 @@ async function main(): Promise<void> {
 
     await browser.close();
   } finally {
-    server.kill();
+    preview.stop();
   }
 }
 

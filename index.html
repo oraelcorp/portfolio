@@ -26,6 +26,23 @@
     <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/jetbrains-mono-400.woff2" as="font" type="font/woff2" crossorigin />
 
+    <!--
+      El overlay se sirve ya visible en el HTML para que cubra la pantalla desde el primer
+      paint: si esperara al módulo, se veían ~900 ms de blanco antes del acento (medido en
+      scripts/check-preloader.ts). Este script bloqueante es la única forma de saltárselo en
+      las visitas siguientes sin que asome el destello de acento, porque el CSS no puede leer
+      sessionStorage. Es diminuto y va en línea a propósito.
+    -->
+    <script>
+      try {
+        if (sessionStorage.getItem('javier:preloaded') === '1') {
+          document.documentElement.dataset.preloaded = 'true';
+        }
+      } catch (e) {
+        /* modo privado o cookies bloqueadas: se muestra el preloader, que no rompe nada */
+      }
+    </script>
+
     <script type="module" src="/src/main.ts"></script>
   </head>
 

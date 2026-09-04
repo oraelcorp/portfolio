@@ -3,7 +3,7 @@
 
 import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
-import { spawn } from 'node:child_process';
+import { startPreview } from './lib/preview.ts';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -390,12 +390,38 @@ async function testScrollJank(browser: Browser): Promise<void> {
   await page.waitForFunction(() => !document.querySelector('[data-preloader]'), null, { timeout: 15_000 });
   await sleep(900);
 
+  // La cadencia del display NO es siempre 60 Hz: en portátil con ahorro de energía baja a 48,
+  // y entonces un umbral fijo de 20 ms marca como jank el 100 % de los frames de una página
+  // en blanco (comprobado con un control). Se mide el ritmo base y el jank se juzga contra él.
+  const baseline = await page.evaluate(
+    () =>
+      new Promise<number>((res) => {
+        const ts: number[] = [];
+        let last = performance.now();
+        const tick = (t: number): void => {
+          ts.push(t - last);
+          last = t;
+          if (ts.length < 90) requestAnimationFrame(tick);
+          else {
+            const s = ts.slice(5).sort((a, b) => a - b);
+            res(s[s.length >> 1] ?? 16.7);
+          }
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  /** Un frame cuenta como perdido si tarda más de vez y media lo que tarda el display. */
+  const JANK_MS = baseline * 1.5;
+  console.log(
+    `      cadencia del display: ${baseline.toFixed(1)} ms (${(1000 / baseline).toFixed(0)} Hz) → se cuenta jank por encima de ${JANK_MS.toFixed(1)} ms`,
+  );
+
   const stats = (frames: number[]): { median: number; p95: number; pct: number; n: number } => {
     const s = frames.slice(5).sort((a, b) => a - b);
     return {
       median: s[Math.floor(s.length / 2)] ?? 0,
       p95: s[Math.floor(s.length * 0.95)] ?? 0,
-      pct: s.length > 0 ? (s.filter((f) => f > 20).length / s.length) * 100 : 100,
+      pct: s.length > 0 ? (s.filter((f) => f > JANK_MS).length / s.length) * 100 : 100,
       n: s.length,
     };
   };
@@ -435,16 +461,16 @@ async function testScrollJank(browser: Browser): Promise<void> {
   const bottom = stats(await run('abajo'));
 
   console.log(
-    `      hero (ASCII activo):  mediana ${top.median.toFixed(1)} ms · p95 ${top.p95.toFixed(1)} · ${top.pct.toFixed(1)} % > 20 ms`,
+    `      hero (ASCII activo):  mediana ${top.median.toFixed(1)} ms · p95 ${top.p95.toFixed(1)} · ${top.pct.toFixed(1)} % con jank`,
   );
   console.log(
-    `      abajo (ASCII pausado): mediana ${bottom.median.toFixed(1)} ms · p95 ${bottom.p95.toFixed(1)} · ${bottom.pct.toFixed(1)} % > 20 ms`,
+    `      abajo (ASCII pausado): mediana ${bottom.median.toFixed(1)} ms · p95 ${bottom.p95.toFixed(1)} · ${bottom.pct.toFixed(1)} % con jank`,
   );
 
   check(
     'sin jank al recorrer la página',
     top.pct < 10 && bottom.pct < 10,
-    `hero ${top.pct.toFixed(1)} % · abajo ${bottom.pct.toFixed(1)} % de frames por encima de 20 ms`,
+    `hero ${top.pct.toFixed(1)} % · abajo ${bottom.pct.toFixed(1)} % de frames por encima de ${JANK_MS.toFixed(1)} ms`,
   );
 
   await ctx.close();
@@ -482,10 +508,7 @@ async function testReducedMotion(browser: Browser): Promise<void> {
 
 async function main(): Promise<void> {
   mkdirSync(OUT, { recursive: true });
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    stdio: 'ignore',
-    shell: process.platform === 'win32',
-  });
+  const preview = startPreview(PORT);
 
   try {
     await waitForServer();
@@ -501,7 +524,7 @@ async function main(): Promise<void> {
 
     await browser.close();
   } finally {
-    server.kill();
+    preview.stop();
   }
 
   console.log(`\n${results.length - failures.length}/${results.length} comprobaciones OK`);

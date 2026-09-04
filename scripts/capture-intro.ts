@@ -2,7 +2,7 @@
 // la onda expansiva del jaguar. Sirve para juzgar el ORDEN y el ritmo, no solo el estado final.
 
 import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
+import { startPreview } from './lib/preview.ts';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -13,10 +13,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function main(): Promise<void> {
   mkdirSync(OUT, { recursive: true });
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    stdio: 'ignore',
-    shell: process.platform === 'win32',
-  });
+  const preview = startPreview(PORT);
 
   try {
     for (let i = 0; i < 60; i++) {
@@ -87,7 +84,7 @@ async function main(): Promise<void> {
     console.log(`  ${shots.length} fotogramas + secuencia.png en screenshots/intro/`);
     await browser.close();
   } finally {
-    server.kill();
+    preview.stop();
   }
 }
 

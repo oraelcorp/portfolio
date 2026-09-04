@@ -5,7 +5,7 @@
 //   H3) ¿sirve Silkscreen? → cobertura de la rampa y si es realmente monoespaciada
 
 import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
+import { startPreview } from './lib/preview.ts';
 
 const PORT = 4182;
 const URL = `http://localhost:${PORT}/`;
@@ -15,10 +15,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const RAMP = `.'\`:,;-~+17cr23ae56bd89AE04BCDF68#%@`;
 
 async function main(): Promise<void> {
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    stdio: 'ignore',
-    shell: process.platform === 'win32',
-  });
+  const preview = startPreview(PORT);
 
   try {
     for (let i = 0; i < 60; i++) {
@@ -151,7 +148,7 @@ async function main(): Promise<void> {
 
     await browser.close();
   } finally {
-    server.kill();
+    preview.stop();
   }
 }
 

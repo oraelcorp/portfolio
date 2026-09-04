@@ -6,7 +6,7 @@
 
 import { chromium } from 'playwright';
 import type { Page } from 'playwright';
-import { spawn } from 'node:child_process';
+import { startPreview } from './lib/preview.ts';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -129,10 +129,7 @@ function row(label: string, w: Weight): void {
 }
 
 async function main(): Promise<void> {
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    stdio: 'ignore',
-    shell: process.platform === 'win32',
-  });
+  const preview = startPreview(PORT);
 
   try {
     for (let i = 0; i < 60; i++) {
@@ -172,7 +169,7 @@ async function main(): Promise<void> {
 
     await browser.close();
   } finally {
-    server.kill();
+    preview.stop();
   }
 }
 

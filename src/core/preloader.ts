@@ -1,11 +1,30 @@
-// src/core/preloader.ts — overlay de acento con bloques + "LOADING" y salida en wipe horizontal. Fase 2.
-// Corregido con la Fase 0 (recon/diff.md §B2): la referencia NO usa contador 000→100.
+// src/core/preloader.ts — overlay de acento con los cuatro cuadrados que vuelcan + "LOADING"
+// y salida en wipe horizontal. Fase 2; indicador remedido frame a frame en la Fase 4.
+// La referencia NO usa contador 000→100 (diff.md §B2) ni bloques que se rellenan: cada cuadrado
+// gira 90° sobre su esquina inferior derecha hasta llenar la pista (§6.1, recon/spinner.json).
 
 import { gsap } from './gsap.ts';
 import { prefersReducedMotion, type Module } from './utils.ts';
 
 const SESSION_KEY = 'javier:preloaded';
-const MIN_DURATION = 1.2; // s — se muestra al menos esto aunque cargue antes (§6.1)
+
+/** Medidas del indicador, tomadas de la referencia (§6.1). */
+const BLOCK = 16; // px — lado del cuadrado; el vuelco lo desplaza justo esto
+const STEP = 18; // px — hueco entre huecos: 16 de bloque + 2 de aire
+const TUMBLE = 0.49; // s — duración de un vuelco de 90°
+const STAGGER = 0.52; // s — cada cuánto arranca el siguiente
+const SCRAMBLE = 0.7; // s — lo que tarda "LOADING" en resolverse
+/**
+ * El scramble no arranca a la vez que el primer vuelco: justo ahí el hilo principal está
+ * ocupado terminando de cargar, y como `lagSmoothing(0)` hace que GSAP avance el tiempo real
+ * perdido, el efecto se consumía en un salto. Medido: 4 estados visibles en vez de ~20.
+ */
+const SCRAMBLE_AT = 0.35; // s
+/** Mismo repertorio que la rampa del retrato ASCII, para que la textura sea la del sitio. */
+const SCRAMBLE_CHARS = '#%@8&0OZXYUJCLQ+-~:;/\\|1379ABDEF';
+
+/** Lo que dura la secuencia completa: el overlay no se va antes de terminarla. */
+const SEQUENCE = STAGGER * 3 + TUMBLE;
 
 /** Espera a que las fuentes y la imagen del retrato estén listas (sin bloquear si fallan). */
 async function assetsReady(): Promise<void> {
@@ -47,31 +66,66 @@ export function initPreloader(): Preloader {
     startExit = resolve;
   });
 
+  // El overlay ya viene visible del HTML (ver el script en línea de index.html): aquí solo
+  // se marca que la carga está en curso, para el CSS que congela el scroll de fondo.
   document.documentElement.dataset.loading = 'true';
-  el.removeAttribute('hidden');
 
   const reduced = prefersReducedMotion();
   const blocks = [...el.querySelectorAll<HTMLElement>('[data-block]')];
+  const label = el.querySelector<HTMLElement>('[data-loading-label]');
   let tl: gsap.core.Timeline | null = null;
 
   const done = (async (): Promise<void> => {
     const started = performance.now();
 
-    if (!reduced) {
-      // Ritmo observado en la referencia: dos bloques entran con calma y un tercero muy rápido,
-      // antes de apagarse todos y repetir.
-      tl = gsap.timeline({ repeat: -1 });
-      tl.to(blocks[0] ?? {}, { opacity: 1, duration: 0.26, ease: 'none' })
-        .to(blocks[1] ?? {}, { opacity: 1, duration: 0.26, ease: 'none' })
-        .to(blocks[2] ?? {}, { opacity: 1, duration: 0.09, ease: 'none' })
-        .to(blocks, { opacity: 0.22, duration: 0.16, ease: 'none' }, '+=0.14');
+    if (reduced) {
+      // Estado final directo: la pista llena, sin vuelcos ni scramble.
+      gsap.set(blocks, { rotate: 90, x: (i: number) => STEP * i - BLOCK });
+      if (label) {
+        label.textContent = 'LOADING';
+        label.dataset.resolved = '';
+      }
+    } else {
+      // Los cuatro cuadrados entran volcando desde fuera del borde izquierdo, uno tras otro.
+      // El giro de 90° sobre la esquina inferior derecha ya empuja el bloque 16px; la x lo
+      // lleva el resto del camino hasta su hueco (§6.1).
+      tl = gsap.timeline();
+      tl.to(blocks, {
+        rotate: 90,
+        x: (i: number) => STEP * i - BLOCK,
+        duration: TUMBLE,
+        ease: 'power3.inOut',
+        stagger: STAGGER,
+      });
+
+      if (label) {
+        tl.to(
+          label,
+          {
+            duration: SCRAMBLE,
+            ease: 'none',
+            // `speed` por defecto: con 0.6 la cola apenas cambiaba y salían 6 estados frente
+            // a los ~20 de la referencia. El juego de caracteres sale de la rampa del retrato
+            // ASCII, para que la textura del scramble sea la misma del resto del sitio.
+            scrambleText: { text: 'LOADING', chars: SCRAMBLE_CHARS, newClass: 'is-set' },
+            // El plugin deshace el envoltorio .is-set al acabar, así que el estado final
+            // necesita su propia marca o el texto se queda tenue para siempre.
+            onComplete: () => {
+              label.dataset.resolved = '';
+            },
+          },
+          SCRAMBLE_AT,
+        );
+      }
     }
 
     await assetsReady();
 
+    // El overlay nunca se va a media secuencia: espera a que los cuatro hayan aterrizado.
+    const floor = reduced ? 0.3 : SEQUENCE;
     const elapsed = (performance.now() - started) / 1000;
-    if (elapsed < MIN_DURATION) {
-      await new Promise((r) => setTimeout(r, (MIN_DURATION - elapsed) * 1000));
+    if (elapsed < floor) {
+      await new Promise((r) => setTimeout(r, (floor - elapsed) * 1000));
     }
 
     tl?.kill();

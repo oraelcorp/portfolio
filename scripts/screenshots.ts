@@ -4,7 +4,7 @@
 
 import { chromium } from 'playwright';
 import type { Page } from 'playwright';
-import { spawn } from 'node:child_process';
+import { startPreview } from './lib/preview.ts';
 import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -62,10 +62,7 @@ async function main(): Promise<void> {
     if (entry.isFile() && mine.test(entry.name)) rmSync(join(OUT, entry.name), { force: true });
   }
 
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-    stdio: 'ignore',
-    shell: process.platform === 'win32',
-  });
+  const preview = startPreview(PORT);
 
   const consoleErrors: string[] = [];
 
@@ -104,7 +101,7 @@ async function main(): Promise<void> {
 
     await browser.close();
   } finally {
-    server.kill();
+    preview.stop();
   }
 
   // §10.8: un error de consola significa que la tarea NO está terminada.
