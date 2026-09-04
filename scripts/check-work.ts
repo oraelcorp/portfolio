@@ -32,6 +32,8 @@ interface Frame {
   fy: number;
   rot: number;
   op: number;
+  sx: number;
+  sy: number;
 }
 
 async function waitForServer(): Promise<void> {
@@ -89,6 +91,8 @@ async function main(): Promise<void> {
       fy: number;
       rot: number;
       op: number;
+      sx: number;
+      sy: number;
     }
     w.__k = { f: [], rec: false };
     let mx = -1;
@@ -113,6 +117,8 @@ async function main(): Promise<void> {
             fy: Math.round(fm.f * 10) / 10,
             rot: Math.round(Math.atan2(pm.b, pm.a) * (180 / Math.PI) * 100) / 100,
             op: Number(getComputedStyle(pill).opacity),
+            sx: Math.round(Math.hypot(pm.a, pm.b) * 1000) / 1000,
+            sy: Math.round(Math.hypot(pm.c, pm.d) * 1000) / 1000,
           });
         }
       }
@@ -120,6 +126,28 @@ async function main(): Promise<void> {
     };
     requestAnimationFrame(tick);
   });
+
+  // --- Caja del cartel: debe coincidir con la medida en la referencia, no aproximarse.
+  // offsetWidth/Height y no getBoundingClientRect: el rect ya viene escalado por el genie.
+  const box = await page.evaluate(() => {
+    const p = document.querySelector<HTMLElement>('.work__pill');
+    if (!p) return null;
+    const cs = getComputedStyle(p);
+    return {
+      w: p.offsetWidth,
+      h: p.offsetHeight,
+      font: cs.fontSize,
+      pad: `${cs.paddingTop} ${cs.paddingRight}`,
+    };
+  });
+  const REF = { w: 111.56, h: 28.6 };
+  console.log(`      caja del cartel: ${box?.w} × ${box?.h} px · tipo ${box?.font} · relleno ${box?.pad}`);
+  console.log(`      referencia:      ${REF.w} × ${REF.h} px · tipo 13.7388px · relleno 4px 8px`);
+  check(
+    'el cartel mide lo mismo que el de la referencia',
+    !!box && Math.abs(box.w - REF.w) <= 1.5 && Math.abs(box.h - REF.h) <= 1.5,
+    `desvío ${box ? Math.abs(box.w - REF.w).toFixed(1) : '?'} × ${box ? Math.abs(box.h - REF.h).toFixed(1) : '?'} px`,
+  );
 
   const cx = fig.x + fig.w / 2;
   const cy = fig.y + fig.h / 2;
@@ -130,12 +158,36 @@ async function main(): Promise<void> {
     (window as unknown as { __k: { rec: boolean } }).__k.rec = true;
   });
 
+  /** Opacidad y escalas de la pill en este instante. */
+  const pillNow = async (): Promise<{ op: number; sx: number; sy: number }> =>
+    page.evaluate(() => {
+      const p = document.querySelector<HTMLElement>('.work__pill');
+      if (!p) return { op: -1, sx: -1, sy: -1 };
+      const m = new DOMMatrixReadOnly(getComputedStyle(p).transform);
+      // Con rotación, las escalas son las normas de las columnas de la matriz.
+      return {
+        op: Number(getComputedStyle(p).opacity),
+        sx: Math.round(Math.hypot(m.a, m.b) * 1000) / 1000,
+        sy: Math.round(Math.hypot(m.c, m.d) * 1000) / 1000,
+      };
+    });
+
+  // A 120 px del borde ya NO debe verse: antes empezaba a los 140 y asomaba muy pronto.
+  await page.mouse.move(fig.x - 120, cy, { steps: 30 });
+  await sleep(400);
+  const far = await pillNow();
+  check('a 120 px del borde todavía no se ve', far.op < 0.03, `opacidad ${far.op.toFixed(2)}`);
+
   await page.mouse.move(fig.x - 30, cy, { steps: 40 }); // acercarse por fuera
   await sleep(300);
-  const approach = await page.evaluate(() => {
-    const p = document.querySelector<HTMLElement>('.work__pill');
-    return p ? Number(getComputedStyle(p).opacity) : -1;
-  });
+  const near = await pillNow();
+  const approach = near.op;
+  // Genie: a medio desplegar las dos escalas tienen que ser MUY distintas entre sí.
+  check(
+    'a medio desplegar el cartel está achatado, no escalado por igual',
+    near.sy < near.sx * 0.85,
+    `scaleX ${near.sx} · scaleY ${near.sy}`,
+  );
 
   await page.mouse.move(cx, cy, { steps: 40 }); // entrar
   await sleep(600);
@@ -244,6 +296,23 @@ async function main(): Promise<void> {
     `rotación máxima ${maxRot.toFixed(1)}° (referencia: 14.1°)`,
   );
 
+  // Genie en movimiento: al desplazarse en horizontal debe estirarse en X y comprimirse en Y.
+  const moving = frames.filter((f) => f.op > 0.9);
+  const maxRatio = Math.max(...moving.map((f) => f.sx / Math.max(0.01, f.sy)));
+  const flat = moving.find((f) => f.sx / Math.max(0.01, f.sy) === maxRatio);
+  check(
+    'al moverse se estira en el eje del movimiento y se comprime en el otro',
+    maxRatio > 1.25,
+    `mayor desproporción scaleX/scaleY: ${maxRatio.toFixed(2)} (sx ${flat?.sx} · sy ${flat?.sy})`,
+  );
+  // Y en reposo tiene que volver a ser un rectángulo sin deformar.
+  const rest = frames[frames.length - 1];
+  check(
+    'en reposo vuelve a su forma, sin deformación residual',
+    !!rest && Math.abs(rest.sx - 1) < 0.08 && Math.abs(rest.sy - 1) < 0.08,
+    `scaleX ${rest?.sx} · scaleY ${rest?.sy}`,
+  );
+
   check('se desvanece al alejarse', away.op < 0.05, `opacidad lejos: ${away.op.toFixed(2)}`);
 
   // El bug: al re-entrar debe estar junto al cursor, no clavada en el borde de la figura.
@@ -260,13 +329,20 @@ async function main(): Promise<void> {
     const marker = document.querySelector<HTMLElement>('[data-work-marker]');
     const previews = [...document.querySelectorAll<HTMLElement>('[data-work-preview]')];
     if (!marker || previews.length < 2) return null;
+    const size = marker.offsetWidth;
 
-    const y = (): number => new DOMMatrixReadOnly(getComputedStyle(marker).transform).f;
-    const series: Array<{ t: number; y: number }> = [];
+    const mtx = (): DOMMatrixReadOnly => new DOMMatrixReadOnly(getComputedStyle(marker).transform);
+    const y = (): number => mtx().f;
+    const series: Array<{ t: number; y: number; rot: number }> = [];
     let go = true;
     const t0 = performance.now();
     const tick = (): void => {
-      series.push({ t: Math.round(performance.now() - t0), y: Math.round(y() * 10) / 10 });
+      const m = mtx();
+      series.push({
+        t: Math.round(performance.now() - t0),
+        y: Math.round(m.f * 10) / 10,
+        rot: Math.round(Math.atan2(m.b, m.a) * (180 / Math.PI) * 10) / 10,
+      });
       if (go) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -275,7 +351,7 @@ async function main(): Promise<void> {
     previews[1]?.scrollIntoView({ block: 'center' });
     await new Promise((r) => setTimeout(r, 2200));
     go = false;
-    return { from, to: y(), series };
+    return { from, to: y(), series, size };
   });
 
   if (!drop) {
@@ -309,6 +385,22 @@ async function main(): Promise<void> {
       'aterriza rebotando en vez de frenar en seco',
       turns >= 2,
       `${turns} cambios de sentido · mayor rebote de ${rebound.toFixed(0)} px`,
+    );
+
+    check('el marcador mide 10 px', drop.size === 10, `${drop.size} px`);
+
+    // El giro: tumba mientras cae y se endereza al posarse.
+    const rots = drop.series.map((p) => p.rot);
+    const maxSpin = Math.max(...rots.map(Math.abs));
+    const settled = rots[rots.length - 1] ?? 99;
+    check('tumba un poco mientras cae', maxSpin > 4 && maxSpin < 30, `giro máximo ${maxSpin.toFixed(1)}°`);
+    check('y se endereza al llegar', Math.abs(settled) < 0.6, `giro final ${settled.toFixed(2)}°`);
+    console.log(
+      `      giro (t:°): ${drop.series
+        .filter((_, i) => i % 3 === 0)
+        .slice(0, 22)
+        .map((p) => `${p.t}:${p.rot.toFixed(0)}`)
+        .join(' ')}`,
     );
     console.log(
       `      trayecto (t:y): ${drop.series

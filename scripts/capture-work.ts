@@ -38,7 +38,10 @@ async function pillState(page: Page, mx: number, my: number): Promise<string> {
       const r = fig.getBoundingClientRect();
       const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
       const dx = Math.max(r.left - x, 0, x - r.right);
-      return `${inside ? 'dentro' : `fuera ${Math.round(dx)}px`} · op ${Number(getComputedStyle(pill).opacity).toFixed(2)} · ${(Math.atan2(m.b, m.a) * (180 / Math.PI)).toFixed(1)}°`;
+      const sx = Math.hypot(m.a, m.b);
+      const sy = Math.hypot(m.c, m.d);
+      return `${inside ? 'dentro' : `fuera ${Math.round(dx)}px`} · op ${Number(getComputedStyle(pill).opacity).toFixed(2)}
+${sx.toFixed(2)} × ${sy.toFixed(2)} · ${(Math.atan2(m.b, m.a) * (180 / Math.PI)).toFixed(1)}°`;
     },
     { x: mx, y: my },
   );
@@ -84,15 +87,16 @@ async function main(): Promise<void> {
   };
 
   // --- Tira 1: el viaje de la pill. Se avanza el cursor a mano por el recorrido.
+  // Muestreo denso dentro de la ventana de acercamiento de 80 px, que es donde ocurre el genie
   const path: number[] = [
-    fig.x - 220,
-    fig.x - 150,
-    fig.x - 100,
-    fig.x - 55,
+    fig.x - 110,
+    fig.x - 70,
+    fig.x - 52,
+    fig.x - 36,
     fig.x - 20,
-    fig.x + 60,
-    fig.x + 200,
-    fig.x + 380,
+    fig.x - 6,
+    fig.x + 90,
+    fig.x + 320,
   ];
   await page.mouse.move(fig.x - 380, cy);
   await sleep(500);
@@ -144,11 +148,13 @@ async function main(): Promise<void> {
   for (let i = 0; i < 8; i++) {
     const y = await page.evaluate(() => {
       const m = document.querySelector<HTMLElement>('[data-work-marker]');
-      return m ? Math.round(new DOMMatrixReadOnly(getComputedStyle(m).transform).f) : -1;
+      if (!m) return { y: -1, rot: 0 };
+      const t = new DOMMatrixReadOnly(getComputedStyle(m).transform);
+      return { y: Math.round(t.f), rot: Math.round(Math.atan2(t.b, t.a) * (180 / Math.PI) * 10) / 10 };
     });
     const buf = await page.screenshot({ clip: asideClip });
     row2.push(
-      `<figure><img src="data:image/png;base64,${buf.toString('base64')}"><figcaption>y = ${y} px</figcaption></figure>`,
+      `<figure><img src="data:image/png;base64,${buf.toString('base64')}"><figcaption>y ${y.y} px · ${y.rot}°</figcaption></figure>`,
     );
     await sleep(70);
   }
@@ -159,7 +165,7 @@ async function main(): Promise<void> {
     h2{font-size:12px;font-weight:400;color:#39ff6a;margin:14px 0 6px}
     .row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
     figure{margin:0} img{display:block;width:100%;outline:1px solid #2a2a2a}
-    figcaption{padding-top:2px;text-align:center;color:#8a8a8a}
+    figcaption{padding-top:2px;text-align:center;color:#8a8a8a;white-space:pre-line;line-height:1.35}
     p{color:#777;margin:6px 0 0}
   </style>
   <h2>Pill "VIEW PROJECT": acompaña al cursor desde fuera y entra con él</h2>
