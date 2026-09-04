@@ -124,6 +124,71 @@ async function main(): Promise<void> {
   await (await out.$('body'))?.screenshot({ path: join(OUT, 'cta-strip.png') });
   await out.close();
 
+  // --- Los dos lados del relevo, en las dos instancias, con el hueco medido en cada uno.
+  // El "+" derecho va fuera del flujo (como en la referencia): si estuviera dentro, su caja
+  // dejaría 56 px de hueco en reposo contra los 6 del hover.
+  const sides: string[] = [];
+  for (const [nombre, sel] of [
+    ['nav', '.nav__cta'],
+    ['hero', '.hero__actions .btn-group'],
+  ] as const) {
+    // El recorte se saca de la caja REAL del grupo, no a ojo: con coordenadas fijas el del
+    // hero encuadraba el logo del nav en vez del botón.
+    const crop = await page.evaluate((q) => {
+      const el = document.querySelector(q);
+      if (!el) return { x: 0, y: 0, width: 320, height: 88 };
+      const r = el.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.round(r.left) - 26),
+        y: Math.max(0, Math.round(r.top) - 22),
+        width: 320,
+        height: 88,
+      };
+    }, sel);
+    for (const hovered of [false, true]) {
+      if (hovered) await page.hover(`${sel} .btn--label`);
+      else await page.mouse.move(700, 700);
+      await sleep(1200);
+      const m = await page.evaluate(
+        ({ s: q, h }) => {
+          const g = document.querySelector<HTMLElement>(q);
+          if (!g) return 'sin CTA';
+          const box = (x: string): DOMRect => g.querySelector<HTMLElement>(x)!.getBoundingClientRect();
+          const gb = g.getBoundingClientRect();
+          const lab = box('.btn--label');
+          const icon = box(h ? '.btn--icon-in' : '.btn--icon-out');
+          const hueco = Math.round(h ? lab.left - icon.right : icon.left - lab.right);
+          const sobra = Math.round(gb.right - (h ? lab.right : icon.right));
+          return `hueco ${hueco}px · sobra ${sobra}px`;
+        },
+        { s: sel, h: hovered },
+      );
+      const buf = await page.screenshot({ clip: crop });
+      sides.push(
+        `<figure><img src="data:image/png;base64,${buf.toString('base64')}"><figcaption>${nombre} · "+" a la ${hovered ? 'IZQUIERDA' : 'DERECHA'}
+${m}</figcaption></figure>`,
+      );
+    }
+  }
+
+  const html2 = `<!doctype html><meta charset="utf-8"><style>
+    body{margin:0;background:#0d0d0d;font:11px ui-monospace,monospace;color:#ccc;padding:12px}
+    h2{font-size:12px;font-weight:400;color:#39ff6a;margin:0 0 8px}
+    .row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:820px}
+    figure{margin:0} img{display:block;width:100%;outline:1px solid #2a2a2a}
+    figcaption{padding-top:3px;text-align:center;color:#8a8a8a;white-space:pre-line;line-height:1.4;font-size:10px}
+  </style>
+  <h2>El hueco es de 6 px con el "+" a cualquiera de los dos lados, en las dos instancias del CTA</h2>
+  <div class="row">${sides.join('')}</div>`;
+
+  const out2 = await ctx.newPage();
+  await out2.setContent(html2);
+  await out2.waitForLoadState('networkidle');
+  await (await out2.$('body'))?.screenshot({ path: join(OUT, 'cta-gap.png') });
+  await out2.close();
+  await page.mouse.move(700, 700);
+  await sleep(600);
+
   // --- Vídeo: tres pasadas a ritmo humano, entrando y saliendo.
   for (let i = 0; i < 3; i++) {
     await glide(page, box.cx, box.cy - 220, box.cx, box.cy, 550);
@@ -147,6 +212,7 @@ async function main(): Promise<void> {
 
   console.log(`errores de consola: ${errors.length === 0 ? 'ninguno' : errors.join(' | ')}`);
   console.log('→ screenshots/cta-strip.png');
+  console.log('→ screenshots/cta-gap.png');
   preview.stop();
 }
 

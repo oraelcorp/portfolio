@@ -52,7 +52,15 @@
     transform: rotate(-45deg) scale(0);
   }
 
+  /* FUERA DEL FLUJO, como en la referencia (`absolute right-0` en su markup). Es lo que
+     hace que el hueco sea de 6 px en los DOS estados: el "+" izquierdo, aunque esté a
+     scale(0), sigue ocupando sus 44 px + 6 de gap, y el label se corre −50 px para taparlos.
+     Si el derecho estuviera en el flujo se quedaría 50 px más a la derecha de la cuenta —
+     medido: 56 px de hueco en reposo y 50 px de caja sobrante en hover. */
   .btn--icon-out {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
     transform-origin: right center;
     transform: rotate(0deg) scale(1);
   }

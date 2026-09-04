@@ -376,6 +376,9 @@ Layout: izquierda (cols 1–7) headline + sub + botones; derecha (cols 7–13) `
 | label | de `translateX(-(alto + 6px))` a `translateX(0)` |
 | transición | **0.7 s · `cubic-bezier(0.83, 0, 0.17, 1)`**, solo sobre `transform` |
 | geometría | "+" cuadrado del alto del botón, `gap: 6px` |
+| el "+" derecho | **fuera del flujo** (`position: absolute; inset-inline-end: 0`) |
+
+Ese último punto no es un detalle: el "+" izquierdo, aunque esté a `scale(0)`, **sigue ocupando su caja** más el gap, y el label se corre justo eso para taparla. Si el derecho estuviera también en el flujo se quedaría esa misma distancia de más a la derecha — medido: **56 px de hueco en reposo contra 6 en hover**, y 50 px de caja reservada de más. La referencia lo resuelve con `absolute right-0`, y así se replica.
 
 Esa curva resulta ser **exactamente el ease `wipe`** que ya se había medido en el preloader (§6.1) — la referencia usa la misma en los dos sitios.
 

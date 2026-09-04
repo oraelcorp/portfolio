@@ -227,6 +227,50 @@ async function main(): Promise<void> {
     `      tramo visible del relevo (de 2 % a 99 % de escala): ${(((rows[settled]?.t ?? 0) - (rows[firstMove]?.t ?? 0)) / 1000).toFixed(2)} s de los 0.7 s declarados`,
   );
 
+  // --- REGRESIÓN: el hueco entre el "+" y el label debe ser el mismo en los DOS estados.
+  // El "+" izquierdo, aunque esté a scale(0), ocupa su caja; si el derecho está en el flujo
+  // se queda 50 px de más a la derecha. Medido antes del fix: 56 px en reposo, 6 en hover.
+  const gapIn = async (sel: string, hovered: boolean): Promise<{ hueco: number; sobra: number }> => {
+    if (hovered) await page.hover(`${sel} .btn--label`);
+    else await page.mouse.move(20, 700);
+    await sleep(1100);
+    return page.evaluate(
+      ({ s, h }) => {
+        const g = document.querySelector<HTMLElement>(s);
+        if (!g) return { hueco: -1, sobra: -1 };
+        const box = (q: string): DOMRect => g.querySelector<HTMLElement>(q)!.getBoundingClientRect();
+        const gb = g.getBoundingClientRect();
+        const lab = box('.btn--label');
+        const icon = box(h ? '.btn--icon-in' : '.btn--icon-out');
+        return {
+          hueco: Math.round(h ? lab.left - icon.right : icon.left - lab.right),
+          sobra: Math.round(gb.right - (h ? lab.right : icon.right)),
+        };
+      },
+      { s: sel, h: hovered },
+    );
+  };
+
+  for (const [nombre, sel] of [
+    ['nav', '.nav__cta'],
+    ['hero', '.hero__actions .btn-group'],
+  ] as const) {
+    const rest = await gapIn(sel, false);
+    const hov = await gapIn(sel, true);
+    check(
+      `${nombre}: el hueco es igual con el "+" a un lado y al otro`,
+      Math.abs(rest.hueco - 6) <= 1 && Math.abs(hov.hueco - 6) <= 1,
+      `reposo ${rest.hueco}px · hover ${hov.hueco}px`,
+    );
+    check(
+      `${nombre}: la caja no reserva sitio de más`,
+      Math.abs(rest.sobra) <= 1 && Math.abs(hov.sobra) <= 1,
+      `sobra reposo ${rest.sobra}px · hover ${hov.sobra}px`,
+    );
+  }
+  await page.mouse.move(20, 700);
+  await sleep(900);
+
   // --- Sin magnetismo
   const drift = await page.evaluate(() => {
     const el = document.querySelector('.nav__cta');
