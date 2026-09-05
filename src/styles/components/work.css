@@ -153,8 +153,9 @@
       position: static;
     }
 
-    /* Móvil: la lista-tab no aporta, cada proyecto se ve como card apilada */
-    .work__list {
+    /* Móvil: la lista-tab no aporta, cada proyecto se ve como card apilada. Se oculta el
+       ENVOLTORIO, no solo la lista: el marcador es hermano suyo y se quedaba flotando solo. */
+    .work__list-wrap {
       display: none;
     }
   }

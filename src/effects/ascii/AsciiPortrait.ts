@@ -14,7 +14,7 @@
 //   modo color → composición de dos canvas ya pintados (fallback previsto en §6.3 punto 11)
 
 import { gsap, ScrollTrigger } from '../../core/gsap.ts';
-import { clamp, lerp, prefersReducedMotion, type Module } from '../../core/utils.ts';
+import { clamp, isTouch, lerp, prefersReducedMotion, type Module } from '../../core/utils.ts';
 import { charForLuma, denseChar } from './charRamp.ts';
 
 export interface AsciiOptions {
@@ -811,8 +811,13 @@ export class AsciiPortrait implements Module {
   // ---------------------------------------------------------------- ciclo
 
   private attach(): void {
-    this.canvas.addEventListener('pointermove', this.onPointerMove);
-    this.canvas.addEventListener('pointerleave', this.onPointerLeave);
+    // Con puntero grueso no hay cursor que seguir: ni el empuje de luminancia ni la sangría
+    // de color tienen premisa, y son justo el trabajo por frame que un móvil menos necesita.
+    // El clic para alternar a color sí se conserva: esa es la afordancia táctil del retrato.
+    if (!isTouch()) {
+      this.canvas.addEventListener('pointermove', this.onPointerMove);
+      this.canvas.addEventListener('pointerleave', this.onPointerLeave);
+    }
 
     if (this.opts.interactive) {
       this.canvas.addEventListener('click', this.onClick);

@@ -71,20 +71,42 @@
     transition: transform var(--dur-cta) var(--ease-cta);
   }
 
-  /* Y en hover se intercambian los papeles. `:focus-within` para que también ocurra
-     al llegar por teclado, que en la referencia no pasa. */
-  .btn-group:hover .btn--icon-in,
-  .btn-group:focus-within .btn--icon-in {
+  /* Y se intercambian los papeles. El `:hover` va detrás de `(hover: hover)` porque en un
+     dispositivo táctil se queda PEGADO tras el toque: medido, el "+" izquierdo se quedaba a
+     escala 1.00 después de tocar el CTA y luego tocar fuera. `:focus-within` sí queda para
+     todos: da respuesta al teclado y, en táctil, se deshace solo al mover el foco. */
+  @media (hover: hover) {
+    .btn-group:hover .btn--icon-in {
+      transform: rotate(0deg) scale(1);
+    }
+
+    .btn-group:hover .btn--icon-out {
+      transform: rotate(-45deg) scale(0);
+    }
+
+    .btn-group:hover .btn--label {
+      transform: translateX(0);
+    }
+
+    .btn-group:hover .btn__text {
+      background-position: 0 0;
+    }
+  }
+
+  /* `:has(:focus-visible)` y no `:focus-within`: el toque enfoca el enlace y `:focus-within`
+     dejaba el relevo abierto indefinidamente — medido, el "+" izquierdo se quedaba a escala
+     1.00 tras tocar el CTA y luego tocar fuera. `:focus-visible` solo casa con foco de
+     teclado, que es justo a quien queremos dar la respuesta. El `:has` hace falta porque el
+     foco cae en el enlace hijo, no en el grupo. */
+  .btn-group:has(:focus-visible) .btn--icon-in {
     transform: rotate(0deg) scale(1);
   }
 
-  .btn-group:hover .btn--icon-out,
-  .btn-group:focus-within .btn--icon-out {
+  .btn-group:has(:focus-visible) .btn--icon-out {
     transform: rotate(-45deg) scale(0);
   }
 
-  .btn-group:hover .btn--label,
-  .btn-group:focus-within .btn--label {
+  .btn-group:has(:focus-visible) .btn--label {
     transform: translateX(0);
   }
 
@@ -115,8 +137,7 @@
     }
   }
 
-  .btn-group:hover .btn__text,
-  .btn-group:focus-within .btn__text {
+  .btn-group:has(:focus-visible) .btn__text {
     background-position: 0 0;
   }
 
@@ -151,5 +172,38 @@
     width: 0.5rem;
     height: 0.5rem;
     background-color: var(--accent-text);
+  }
+}
+
+/* ---------------------------------------------------------------- zonas táctiles
+   Con puntero grueso, los enlaces y controles necesitan un área de toque mayor que su
+   caja de texto. Criterio: WCAG 2.2 AA (SC 2.5.8) pide 24×24 CSS px y EXIME a los enlaces
+   en línea dentro de un texto; los 44×44 son AAA (2.5.5) y guía de plataforma, y se
+   reservan para los controles de verdad.
+
+   El truco del `padding-block` en elementos EN LÍNEA es que agranda la caja de impacto sin
+   tocar el layout: el relleno vertical de un inline no aporta altura a la línea. Para los
+   controles, que sí son bloques, se usa `min-block-size` directamente.
+   Va fuera de `@layer` a propósito, como el bloque de reduced-motion: así gana al CSS en
+   capas sin necesitar `!important`, que §3 prohíbe. */
+@media (pointer: coarse) {
+  .footer__link,
+  .footer__legal a,
+  .footer__mails a,
+  .menu__col a,
+  .contact__email,
+  .btn-text {
+    padding-block: 0.75rem;
+  }
+
+  /* Controles reales: 44 px de alto mínimo, con el contenido centrado. */
+  .nav__logo,
+  .nav__menu,
+  .hero__hint,
+  .faq__q,
+  [data-ascii-toggle] {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
   }
 }

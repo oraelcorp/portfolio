@@ -14,7 +14,7 @@
 // pegado al frente de resolución del scramble en vez de ir por su cuenta.
 
 import { gsap } from '../core/gsap.ts';
-import { prefersReducedMotion, type Module } from '../core/utils.ts';
+import { isTouch, prefersReducedMotion, type Module } from '../core/utils.ts';
 
 /** Duración y curva del relevo, en sincronía con --dur-cta / --ease-cta de tokens.css. */
 const DURATION = 0.7;
@@ -22,8 +22,10 @@ const EASE = 'wipe';
 
 export function initCtaButtons(): Module {
   const groups = [...document.querySelectorAll<HTMLElement>('[data-cta]')];
-  const reduced = prefersReducedMotion();
-  if (groups.length === 0 || reduced) return { destroy() {} };
+  // En táctil el scramble se dispararía en el propio toque que navega: ruido justo antes de
+  // irse de la página. El relevo del "+" sí se conserva, porque es CSS y responde también a
+  // `:focus-within`, así que da respuesta al toque y se deshace al mover el foco.
+  if (groups.length === 0 || prefersReducedMotion() || isTouch()) return { destroy() {} };
 
   const cleanups: Array<() => void> = [];
 

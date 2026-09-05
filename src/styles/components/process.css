@@ -80,8 +80,12 @@
       grid-template-columns: minmax(0, 1fr);
     }
 
+    /* `relative`, NO `static`: al quitarle la posición dejaba de ser bloque contenedor y sus
+       hijos absolutos subían hasta la sección hero, que sí está posicionada, y con `inset: 0`
+       la tapaban entera — cuatro capas de 480×900 sobre el titular. Se pierde el sticky, que
+       es lo que se quería en móvil, pero se conserva el contenedor. */
     .process__media {
-      position: static;
+      position: relative;
       order: -1;
     }
   }
