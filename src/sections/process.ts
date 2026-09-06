@@ -4,7 +4,15 @@
 import { gsap, ScrollTrigger } from '../core/gsap.ts';
 import { prefersReducedMotion, type Module } from '../core/utils.ts';
 
-const DIM = 0.32;
+/**
+ * Suelo de atenuación de los pasos inactivos. Se LEE del CSS (`--process-dim`) para que la
+ * media query pueda subirlo en móvil, donde se ven varios pasos a la vez y el 0.32 de
+ * escritorio deja el texto por debajo de AA.
+ */
+function suelo(el: Element): number {
+  const v = parseFloat(getComputedStyle(el).getPropertyValue('--process-dim'));
+  return Number.isFinite(v) ? v : 0.32;
+}
 
 export function initProcess(): Module {
   const steps = [...document.querySelectorAll<HTMLElement>('[data-step]')];
@@ -27,7 +35,8 @@ export function initProcess(): Module {
     steps.forEach((step, i) => {
       const on = i === index;
       step.dataset.active = String(on);
-      gsap.to(step, { autoAlpha: on ? 1 : DIM, duration: 0.4, ease: 'main', overwrite: 'auto' });
+      const dim = suelo(step.closest('.process__body') ?? step);
+      gsap.to(step, { autoAlpha: on ? 1 : dim, duration: 0.4, ease: 'main', overwrite: 'auto' });
     });
 
     // Crossfade de la media: solo la del paso activo queda visible
