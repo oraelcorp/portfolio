@@ -128,6 +128,40 @@ async function auditar(page: Page, ancho: number): Promise<Hallazgo[]> {
       });
     }
 
+    // 3b) Desplazamientos que pisan al vecino. Un elemento `relative` o `sticky` con un
+    //     offset se mueve SIN mover su hueco de layout, así que puede solaparse con lo que
+    //     viene después sin que nada se salga del viewport ni escape de su sección. Es el
+    //     caso del `top` del sticky del proceso, que sobrevivió al pasar a móvil y se comía
+    //     97 px del párrafo de intro.
+    const conTexto = [...document.querySelectorAll<HTMLElement>('main p, main h1, main h2, main h3, main li')]
+      .map((t) => ({ t, r: t.getBoundingClientRect() }))
+      .filter(({ r, t }) => r.height > 8 && (t.textContent ?? '').trim().length > 0);
+
+    const yaDicho = new Set<string>();
+    for (const el of document.querySelectorAll<HTMLElement>('main *')) {
+      const cs = getComputedStyle(el);
+      if (cs.position !== 'relative' && cs.position !== 'sticky') continue;
+      const dy = parseFloat(cs.top) || 0;
+      const dx = parseFloat(cs.left) || 0;
+      if (Math.abs(dy) < 2 && Math.abs(dx) < 2) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 40 || r.height < 40) continue;
+
+      for (const { t, r: tr } of conTexto) {
+        if (el.contains(t) || t.contains(el)) continue;
+        const solape = Math.min(r.bottom, tr.bottom) - Math.max(r.top, tr.top);
+        const cruce = Math.min(r.right, tr.right) - Math.max(r.left, tr.left);
+        if (solape <= 2 || cruce <= 2) continue;
+        const k = `${nombre(el)}->${nombre(t)}`;
+        if (yaDicho.has(k)) continue;
+        yaDicho.add(k);
+        out.push({
+          tipo: 'desplazado sobre el vecino',
+          detalle: `${nombre(el)} (top ${cs.top}) pisa ${Math.round(solape)}px de "${(t.textContent ?? '').trim().slice(0, 32)}"`,
+        });
+      }
+    }
+
     // 4) Texto por debajo del mínimo legible en móvil
     const MIN = w <= 480 ? 12 : 11;
     const vistos = new Set<string>();
