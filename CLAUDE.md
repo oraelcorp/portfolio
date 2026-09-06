@@ -40,6 +40,7 @@ Hallazgos de la Fase 0 que **corrigen** el spec: ./recon/sections.md y ./recon/d
 - `node scripts/tune-nav-scrim.ts` — barre tinte y desenfoque del scrim contra la legibilidad medida del texto del nav
 - `node scripts/audit-responsive.ts` — audita 480/768/1024/1440: desbordes, escapes de sección, texto pequeño, zonas táctiles
 - `node scripts/check-touch.ts` — suite de la política de puntero en táctil (6)
+- `node scripts/check-faq-scramble.ts` — el scramble del FAQ funciona con ratón, teclado y toque (9)
 - `node scripts/recon-ascii-hover.ts` — ¿el puntero de la referencia revela color o aclara? (promedia series para separar el shimmer)
 - `node scripts/check-bleed.ts` — suite de la sangría (6): revela color, decae, no es un disco, alcance por dirección, coste, repliegue
 - `node scripts/capture-bleed.ts` — compara reposo / sangría / modo color completo, y graba vídeo
@@ -159,6 +160,10 @@ Display lh 1.1 / ls −0.035em · H2 peso 500 ls −0.05em · **mono con trackin
   **Zonas táctiles:** criterio WCAG 2.2 AA (SC 2.5.8, **24×24** y exención para enlaces en línea) para enlaces, y 44×44 (AAA / guía de plataforma) para controles de verdad. Un umbral único de 44 daba 17 hallazgos mezclando botones con enlaces de párrafo, que no es accionable. El `padding-block` en elementos **en línea** agranda la caja de impacto **sin tocar el layout**, porque el relleno vertical de un inline no aporta altura a la línea.
   Resultado: **0 hallazgos en los cuatro anchos** y 6/6 en `check-touch.ts`.
 - **[2026-09-04] ⚠️ TRES falsos positivos seguidos en la suite táctil · Qué pasó:** perseguí un "estado de hover pegado" que no existía. (1) Medí la opacidad de la pill en vez de su visibilidad efectiva, cuando su contenedor está en `display: none`. (2) Medí el CTA **del nav**, que se oculta por debajo de 48 rem, y `getComputedStyle` de un elemento no renderizado devuelve `transform: none` → escala 1.00, que parecía un estado abierto. (3) El localizador del CTA del hero casaba con dos elementos. **Lección: comprobar que lo que se mide está realmente renderizado antes de interpretar su estilo computado.** Y tras corregirlo, una verificación roja-verde mostró que la guarda `@media (hover: hover)` que había añadido **no cambia nada en la emulación de Chrome**: se mantiene porque iOS Safari y Chrome Android sí dejan el `:hover` aplicado tras un toque, pero eso **no está medido aquí**.
+
+- **[2026-09-06] El scramble del FAQ NO estaba desactivado en táctil: nunca se había implementado · Qué pasó:** Javier lo echó en falta probando en un móvil real y supuso que había quedado atrapado en la misma guarda de `isTouch()` que principios y stack. No era eso: los únicos scrambles del proyecto eran el del CTA, el del menú, el del preloader y el de `hovers.ts` — que apunta solo a `.principles__title, .stack__name`. **El FAQ no aparecía en ninguno**, pese a que §6.14 lo pide expresamente ("con la altura animada y scramble del título al abrir"), y yo di la Fase 4 por cerrada sin construirlo.
+  **Criterio para no repetirlo:** un efecto se apaga en táctil cuando su premisa es _un cursor presente sobre el elemento_ (la pill que persigue, el halo, los scrambles por hover de principios y stack). El del FAQ lo dispara la **apertura**, igual que el relevo del "+" lo dispara el foco: eso funciona con ratón, teclado y toque, y por tanto **se conserva**. El hover del FAQ sí se añade aparte y solo con puntero fino, que es lo que hace la referencia (recon §6: "hover/activo → blanco + scramble").
+  Verificado en los dos contextos con `scripts/check-faq-scramble.ts`: 22 estados al abrir y al cerrar, con ratón y con toque, y el texto restituido al final.
 
 ### Diferenciadores intencionales (decisión de Javier, 2026-09-02)
 

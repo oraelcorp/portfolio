@@ -313,7 +313,7 @@ function faq(): string {
       (f, i) => `
       <li class="faq__item">
         <button class="faq__q t-mono" type="button" data-faq-q aria-expanded="false" aria-controls="faq-a-${i}">
-          <span>${esc(f.q)}</span>
+          <span data-faq-text>${esc(f.q)}</span>
           <span class="faq__icon" aria-hidden="true">+</span>
         </button>
         <div class="faq__a t-body" id="faq-a-${i}" hidden>${field(f.a)}</div>
