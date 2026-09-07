@@ -43,6 +43,9 @@ Hallazgos de la Fase 0 que **corrigen** el spec: ./recon/sections.md y ./recon/d
 - `node scripts/check-faq-scramble.ts` — el scramble del FAQ funciona con ratón, teclado y toque (9)
 - `node scripts/audit-contrast.ts` — contraste real de todo el texto, con la opacidad heredada incluida
 - `node scripts/audit-a11y.ts` — teclado, foco, landmarks, reduced-motion y alternativa del canvas (22)
+- `node scripts/check-seo.ts` — meta/OG/JSON-LD del HTML YA CONSTRUIDO, y que no se invente canonical (24)
+- `node scripts/lighthouse.ts` — corre Lighthouse desktop y guarda `screenshots/lighthouse.html`
+- `node scripts/make-og.ts` — regenera `public/img/og.jpg` (1200×630) fotografiando nuestro propio hero
 - `node scripts/recon-ascii-hover.ts` — ¿el puntero de la referencia revela color o aclara? (promedia series para separar el shimmer)
 - `node scripts/check-bleed.ts` — suite de la sangría (6): revela color, decae, no es un disco, alcance por dirección, coste, repliegue
 - `node scripts/capture-bleed.ts` — compara reposo / sangría / modo color completo, y graba vídeo
@@ -193,6 +196,26 @@ Display lh 1.1 / ls −0.035em · H2 peso 500 ls −0.05em · **mono con trackin
   **Este equipo puede dar un rojo falso en `check-phase3`:** su display corre a **48 Hz** (20.8 ms por frame, no 16.6) y bajo carga el p90 del pintado sube a 4.9–5.9 ms. Con 3.6 ms el retrato ocupa el **17 %** de un frame de 48 Hz y `check-phase4` mide **0 % de frames perdidos**: no se cae ninguno. Corridas idénticas sobre el mismo código varían ~2 ms.
   **Cómo distinguir el rojo falso de una regresión de verdad**, sin volver a perder una tarde: `check-phase3` imprime la mediana de rAF junto al resultado. Si dice ~20.8 ms, el equipo está a 48 Hz y/o cargado → contrastar con `check-phase4`; si ese sigue en 0 % de frames perdidos, **no hay regresión**. Una regresión real aparece en los dos sitios. Si la mediana de rAF dice ~16.6 ms y aun así el pintado se pasa de 4 ms, entonces sí es del código.
 
+- **[2026-09-06] Fase 5 · bloque 3 — Lighthouse y Open Graph · Resultados medidos** (`screenshots/lighthouse.html`, desktop):
+
+  | Categoría      | Nota    | §8 pide |                                           |
+  | -------------- | ------- | ------- | ----------------------------------------- |
+  | Performance    | **98**  | ≥ 90    | FCP 0.4 s · LCP 0.5 s · TBT 50 ms · CLS 0 |
+  | Accessibility  | **96**  | ≥ 95    |                                           |
+  | SEO            | **100** | ≥ 95    |                                           |
+  | Best Practices | **79**  | ≥ 95    | **artefacto de medir en HTTP local**      |
+
+  **Los 79 de Best Practices son aritmética de HTTPS, no un defecto del sitio.** Las únicas auditorías con peso que fallan son "Does not use HTTPS" (peso 5) y "Does not redirect HTTP traffic to HTTPS" (peso 1), sobre 28 de peso total: 22/28 = 78.6 → 79, que cuadra al punto con lo reportado. Las dos son imposibles de pasar contra `vite preview`, que sirve en HTTP plano. En un deploy con TLS dan 28/28 = **100**. **Verificado por aritmética sobre el JSON del reporte, no por una corrida real en HTTPS**, que no se puede hacer hasta la Fase 6.
+
+- **[2026-09-06] Las meta salen de `site.ts`, no escritas a mano en `index.html` · Motivo:** el título y la description estaban duplicados en los dos sitios, y §5 pide una sola fuente de texto: dos copias se desincronizan a la primera. Nuevo `src/render/head.ts`, inyectado por el mismo plugin de vite que ya montaba las secciones. Añade lo que faltaba: `og:site_name`, `og:locale`, `og:image:width/height/alt`, `twitter:title/description/image/image:alt` (X no siempre cae en las `og:` cuando hay `twitter:` presentes) y un JSON-LD `Person`.
+- **[2026-09-06] Sin dominio NO se inventa canonical, `og:url` ni sitemap · Motivo:** `meta.url` sigue siendo `[TODO]` y una canonical equivocada es **peor que ninguna** — le dice a un buscador que la página buena es otra. Mientras falte, el `<head>` lleva un comentario `TODO_JAVIER` visible en "ver código fuente" y no se emite `sitemap.xml`. El JSON-LD incluye solo los campos que existen de verdad, nunca un `[TODO]` dentro.
+  **La rama dormida está validada en rojo-verde:** poniendo un dominio de prueba en `site.ts` aparecen canonical, `og:url`, la `og:image` absoluta y el `sitemap.xml` correcto; quitándolo, desaparecen los cuatro. Se probó ahora precisamente porque es código que no se ejecuta hasta el día que importe.
+- **[2026-09-06] `og.jpg` generado de nuestra propia página, como placeholder · Motivo:** las meta la referencian y sin archivo cada enlace compartido sale con la tarjeta rota. `scripts/make-og.ts` fotografía nuestro hero a 1200×630 —no es un asset de terceros (§10.6), es la página que ya construimos— ocultando el nav y el indicador de scroll, que en una imagen fija no aportan. **Sigue en la lista de assets de §7:** cuando Javier dé la definitiva se sobrescribe el archivo y las meta no cambian. El `check-seo` verifica que el JPEG existe y que **mide exactamente** lo que declaran `og:image:width/height`, leyendo sus marcadores SOF.
+- **[2026-09-06] Los dos hallazgos de contraste de Lighthouse, verificados uno a uno · Motivo:** Lighthouse dio `color-contrast` en 0.00 y eso contradecía el "0 fallos" de `audit-contrast.ts`. Medidos los dos:
+  1. **`.hero__clients .t-mono`** — Lighthouse los pilló **a media animación de entrada**, con `opacity` 0.91 y 0.80 escritas en línea por el stagger. En reposo son `#ababab` a opacidad 1: **8.07:1**, holgadamente AA. No es un fallo del estado que la gente lee, y con `prefers-reduced-motion` la animación ni existe. Mi auditoría estaba bien.
+  2. **`.footer__wordmark`** — `#1e1d1e` sobre `#141314`: **1.1:1**, real. Es la palabra gigante de 302 px del pie, `aria-hidden`, **textura decorativa deliberada**: el nombre ya aparece legible en "© 2026 JAVIER" y en el logo del nav. Subirla a 3:1 la convertiría en un elemento protagonista y rompería el diseño. **Se deja, y queda anotado como decisión de diseño, no como descuido.** Pendiente del visto bueno de Javier: es su diseño, no mío.
+- **[2026-09-06] ⚠️ Tres horas de Lighthouse peleando con el entorno, no con el sitio · Qué pasó:** el runner no dejaba reporte y el único error visible era un `EPERM` al borrar el perfil temporal de Chrome. **Ese EPERM no tenía nada que ver:** es un fallo conocido de `chrome-launcher` en Windows que ocurre en el teardown, después de la auditoría. Tapaba tres causas reales, encontradas una a una: (1) Node se niega a lanzar un `.cmd` sin `shell: true` desde la CVE-2024-27980 — aquí sí es seguro porque `spawnSync` espera y no puede dejar huérfanos, al contrario que el servidor de preview; (2) **`vite preview` escucha solo en IPv6 en esta máquina** (`127.0.0.1` da ECONNREFUSED y `localhost` resuelve a `::1`), y el Chrome headless intentaba IPv4 — el script prueba las dos y usa la que conteste; (3) **la ruta del proyecto tiene un espacio** ("AI RESUME") y el comando viaja como una sola cadena al shell, así que `--output-path` se partía en dos argumentos. **Lección: cuando una herramienta falla con un error de limpieza, ese error casi nunca es la causa — buscar qué pasó antes.**
+
 ### Diferenciadores intencionales (decisión de Javier, 2026-09-02)
 
 Estos efectos **no existen en good-fella.com** — está medido y la medición fue correcta. Javier los probó
@@ -257,7 +280,13 @@ desviaciones deliberadas de la fidelidad estricta. **No revertirlos "por fidelid
 - `process.steps`: los 4 títulos y descripciones están marcados `PROPUESTA` en `site.ts`.
 - `nav.status`: "OPEN TO INTERNSHIPS & FREELANCE" — confirmar si es cierto antes de publicar.
 
+### Al llegar el dominio (`meta.url` en site.ts)
+
+Se activan **solos** canonical, `og:url`, la `og:image` absoluta y `sitemap.xml` — está validado en rojo-verde.
+Lo único manual: añadir la línea `Sitemap: https://<dominio>/sitemap.xml` a `public/robots.txt`.
+
 ### Assets pendientes (§7)
 
-`public/img/`: foto de retrato (stats), media de los 4 pasos del proceso, covers de work, foto de contacto, `og.jpg`.
+`public/img/`: foto de retrato (stats), media de los 4 pasos del proceso, covers de work, foto de contacto.
+`og.jpg` **ya existe como placeholder generado** de nuestro propio hero (`node scripts/make-og.ts`); sustituir por la definitiva cuando la haya — las meta no cambian.
 Mientras tanto se ven placeholders rayados generados por CSS (nunca imágenes de terceros, §10.6).

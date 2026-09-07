@@ -15,6 +15,8 @@ export const site = {
     email: 'traperouu21@gmail.com',
     url: TODO, // TODO_JAVIER: dominio final, para el canonical y las OG
     ogDescription: 'Mechatronics engineer building AI products. Portfolio built with Claude Code.',
+    // Texto alternativo de la imagen para compartir (og:image / twitter:image)
+    ogImageAlt: "ASCII portrait of a roaring jaguar beside the headline 'Engineering that learns.'",
   },
 
   nav: {
