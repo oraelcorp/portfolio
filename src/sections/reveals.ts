@@ -11,12 +11,20 @@ interface Group {
   items: string;
   y?: number;
   stagger?: number;
+  /**
+   * No tocar la opacidad en la entrada. Hace falta cuando OTRO módulo ya la gobierna: los
+   * pasos del proceso los atenúa el scrollytelling, y como el tween de `from` se construye
+   * al crear el trigger —antes de que `activate()` aplique el suelo— capturaba opacidad 1
+   * como destino y BORRABA la atenuación al entrar en la sección. Solo reaparecía al cruzar
+   * el siguiente límite de paso.
+   */
+  soloY?: boolean;
 }
 
 /** Cada grupo entra al llegar su contenedor al 80 % del viewport. */
 const GROUPS: Group[] = [
   { items: '[data-section="stats"] .stats > *', y: 40, stagger: 0.1 },
-  { items: '[data-section="process"] [data-step]', y: 40, stagger: 0.1 },
+  { items: '[data-section="process"] [data-step]', y: 40, stagger: 0.1, soloY: true },
   { items: '[data-section="work"] [data-work-preview]', y: 40, stagger: 0.1 },
   { items: '[data-section="principles"] .principles__item', y: 30, stagger: 0.08 },
   { items: '[data-section="stack"] .stack__group', y: 30, stagger: 0.08 },
@@ -59,7 +67,7 @@ export function initReveals(): Module {
         once: true,
         animation: gsap.from(items, {
           y: group.y ?? 30,
-          autoAlpha: 0,
+          ...(group.soloY ? {} : { autoAlpha: 0 }),
           duration: 0.9,
           ease: 'main',
           stagger: group.stagger ?? 0.08,

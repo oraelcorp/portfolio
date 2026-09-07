@@ -7,8 +7,14 @@
     --bg-elev: #1e1d1e; /* cards y superficies elevadas sobre dark */
     --bg-panel: #2b2a2b; /* panel del menú */
     --fg: #eeeeee;
-    --fg-muted: #818081; /* labels */
-    --fg-dim: #696869; /* body atenuado */
+    /* MEDIDOS en la referencia como #818081 y #696869, pero su paleta no llega a AA sobre
+       los fondos oscuros: #818081 sobre --bg-elev da 3.63:1 y #696869 sobre --bg-elev, 2.58:1,
+       contra los 4.5 que exige el texto normal. Se suben lo justo para cumplir sobre el fondo
+       MÁS CLARO de los dos (--bg-elev, el panel del menú), que es el caso límite, conservando
+       la diferencia de jerarquía entre ambos. Desviación consciente de la fidelidad: la
+       referencia falla aquí y este sitio es la carta de presentación de Javier. */
+    --fg-muted: #ababab; /* labels */
+    --fg-dim: #929292; /* body atenuado */
 
     /* ---- Tema claro (la home alterna dark/light por sección) ---- */
     --bg-light: #ededed;

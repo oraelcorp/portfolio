@@ -162,6 +162,11 @@ export class AsciiPortrait implements Module {
   private hasPointer = false;
   private lastShimmer = 0;
   private lastBleed = 0;
+  /** Caja de las celdas con sangría viva, para no recorrer el alcance máximo cada paso. */
+  private bx0 = 0;
+  private bx1 = -1;
+  private by0 = 0;
+  private by1 = -1;
   private shimmerDirty: number[] = [];
   private running = false;
   private visible = true;
@@ -169,6 +174,8 @@ export class AsciiPortrait implements Module {
   private revealRequested = false;
   private frameCount = 0;
   private frameMs = 0;
+  /** Peor frame desde la última publicación en el atributo. */
+  private frameMsPeak = 0;
   /** Paso horizontal en el espacio ya estirado: una celda = un avance de glifo. */
   private stepX = 0;
   /** Celda y tamaño de fuente EFECTIVOS: ya ajustados a píxel y al alto real del glifo. */
@@ -182,6 +189,11 @@ export class AsciiPortrait implements Module {
   private fadeTo: HTMLCanvasElement | null = null;
   private fading = false;
 
+  /** Los 18 colores posibles cuando la celda no lleva mezcla: 2 paletas × 9 escalones de
+      alpha. Construir la cadena `rgba(...)` celda a celda era el grueso del coste del
+      repintado del puntero, que recorre miles de celdas por frame mientras el cursor se
+      mueve. Si algún día la paleta deja de leerse una sola vez, hay que reconstruirla. */
+  private styleCache: string[] = [];
   private accent: [number, number, number];
   private fg: [number, number, number];
 
@@ -237,6 +249,7 @@ export class AsciiPortrait implements Module {
 
     this.accent = hexToRgb(readToken('--accent', '#39ff6a'));
     this.fg = hexToRgb(readToken('--fg', '#eeeeee'));
+    this.buildStyleCache();
 
     void this.load();
   }
@@ -508,6 +521,18 @@ export class AsciiPortrait implements Module {
     return [...map].map(([style, cells]) => ({ style, cells: Int32Array.from(cells) }));
   }
 
+  /** Precalcula los colores sin mezcla. Depende solo de `accent`, `fg` y ALPHA_STEPS. */
+  private buildStyleCache(): void {
+    const tabla: string[] = [];
+    for (let hi = 0; hi < 2; hi++) {
+      const base = hi === 1 ? this.fg : this.accent;
+      for (let a = 0; a <= ALPHA_STEPS; a++) {
+        tabla[hi * (ALPHA_STEPS + 1) + a] = this.rgba(base[0], base[1], base[2], a / ALPHA_STEPS);
+      }
+    }
+    this.styleCache = tabla;
+  }
+
   private styleFor(i: number, l: number, mix: number): string {
     const isHi = this.highlight[i] === 1;
     const base = isHi ? this.fg : this.accent;
@@ -516,7 +541,12 @@ export class AsciiPortrait implements Module {
     // que los bordes sigan destacando sobre una base ahora más tenue.
     const alpha = isHi ? 0.9 + 0.1 * l : ALPHA_FLOOR + ALPHA_RANGE * l;
 
-    if (mix <= 0) return this.rgba(base[0], base[1], base[2], alpha);
+    if (mix <= 0) {
+      const paso = Math.round(clamp(alpha, 0, 1) * ALPHA_STEPS);
+      return (
+        this.styleCache[(isHi ? ALPHA_STEPS + 1 : 0) + paso] ?? this.rgba(base[0], base[1], base[2], alpha)
+      );
+    }
 
     const r = this.rgb[i * 3] ?? 0;
     const g = this.rgb[i * 3 + 1] ?? 0;
@@ -659,10 +689,30 @@ export class AsciiPortrait implements Module {
     const cx = Math.round(this.pointerX);
     const cy = Math.round(this.pointerY);
     const R = BLEED_CELLS;
-    const minX = on ? Math.max(0, cx - R) : 0;
-    const maxX = on ? Math.min(cols - 1, cx + R) : cols - 1;
-    const minY = on ? Math.max(0, cy - R) : 0;
-    const maxY = on ? Math.min(rows - 1, cy + R) : rows - 1;
+
+    // La caja a recorrer NO es el alcance máximo: es lo ya teñido más un margen de una celda,
+    // que es hasta donde puede avanzar el frente en un paso. Recorrer siempre 53×53 celdas
+    // costaba lo mismo con el derrame recién nacido que con él extendido del todo, y eso es
+    // lo que sacaba el pintado del presupuesto de 4 ms de §8 en barridos bruscos.
+    const margen = 2;
+    let minX = on ? Math.max(0, cx - margen) : cols;
+    let maxX = on ? Math.min(cols - 1, cx + margen) : -1;
+    let minY = on ? Math.max(0, cy - margen) : rows;
+    let maxY = on ? Math.min(rows - 1, cy + margen) : -1;
+    if (this.bleedActive) {
+      minX = Math.min(minX, Math.max(0, this.bx0 - margen));
+      maxX = Math.max(maxX, Math.min(cols - 1, this.bx1 + margen));
+      minY = Math.min(minY, Math.max(0, this.by0 - margen));
+      maxY = Math.max(maxY, Math.min(rows - 1, this.by1 + margen));
+    }
+    if (maxX < minX || maxY < minY) return false;
+    // Y nunca más allá del alcance máximo alrededor del puntero.
+    if (on) {
+      minX = Math.max(minX, Math.max(0, cx - R));
+      maxX = Math.min(maxX, Math.min(cols - 1, cx + R));
+      minY = Math.max(minY, Math.max(0, cy - R));
+      maxY = Math.min(maxY, Math.min(rows - 1, cy + R));
+    }
 
     // Tono de la celda semilla: se refresca mientras el puntero está encima.
     if (on) {
@@ -674,6 +724,11 @@ export class AsciiPortrait implements Module {
     const fall = 1 - Math.exp(-BLEED_FALL * dt);
     this.bleedDirty.length = 0;
     let vivo = false;
+    // Caja de lo que queda teñido, para acotar el recorrido del paso siguiente.
+    let nx0 = cols;
+    let nx1 = -1;
+    let ny0 = rows;
+    let ny1 = -1;
 
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
@@ -725,7 +780,13 @@ export class AsciiPortrait implements Module {
         // `bleedActive` se quedaba en true para siempre tras salir el puntero.
         if (next < 0.02 && objetivo === 0) next = 0;
         this.bleedNext[i] = next;
-        if (next > 0) vivo = true;
+        if (next > 0) {
+          vivo = true;
+          if (x < nx0) nx0 = x;
+          if (x > nx1) nx1 = x;
+          if (y < ny0) ny0 = y;
+          if (y > ny1) ny1 = y;
+        }
         if (Math.abs(next - cur) > BLEED_EPS) this.bleedDirty.push(i);
       }
     }
@@ -739,6 +800,10 @@ export class AsciiPortrait implements Module {
     }
 
     this.bleedActive = vivo;
+    this.bx0 = nx0;
+    this.bx1 = nx1;
+    this.by0 = ny0;
+    this.by1 = ny1;
     return this.bleedDirty.length > 0;
   }
 
@@ -756,46 +821,77 @@ export class AsciiPortrait implements Module {
     const cols = this.cols;
     const reveal = this.revealRadius;
 
-    const minX = Math.max(0, Math.floor(Math.min(prevX, this.pointerX) - pad));
-    const maxX = Math.min(cols - 1, Math.ceil(Math.max(prevX, this.pointerX) + pad));
-    const minY = Math.max(0, Math.floor(Math.min(prevY, this.pointerY) - pad));
-    const maxY = Math.min(this.rows - 1, Math.ceil(Math.max(prevY, this.pointerY) + pad));
-    if (maxX < minX || maxY < minY) return;
+    // Dos cajas, una por posición, en vez de la caja que las UNE: en un barrido rápido la
+    // unión arrastra toda la franja intermedia, que no toca ninguno de los dos discos y se
+    // repintaba entera cada frame. Si se solapan no hay nada que ganar y se usa la unión,
+    // que además evita pintar dos veces la intersección.
+    const caja = (cx: number, cy: number): [number, number, number, number] => [
+      Math.max(0, Math.floor(cx - pad)),
+      Math.min(cols - 1, Math.ceil(cx + pad)),
+      Math.max(0, Math.floor(cy - pad)),
+      Math.min(this.rows - 1, Math.ceil(cy + pad)),
+    ];
+    const a = caja(prevX, prevY);
+    const b = caja(this.pointerX, this.pointerY);
+    const solapan = a[0] <= b[1] && b[0] <= a[1] && a[2] <= b[3] && b[2] <= a[3];
+    const cajas: Array<[number, number, number, number]> = solapan
+      ? [[Math.min(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.max(a[3], b[3])]]
+      : [a, b];
 
     this.prepare(ctx);
     const stepX = this.stepX;
-    ctx.clearRect(minX * stepX, minY * cellH, (maxX - minX + 1) * stepX, (maxY - minY + 1) * cellH);
 
     const px = this.pointerX;
     const py = this.pointerY;
     const radius = this.opts.pointerRadius;
     const pointerOn = this.hasPointer && px > -100;
+    // El canvas reparsea la cadena en CADA asignación de `fillStyle`, así que con la tabla
+    // de arriba la mayoría de celdas contiguas comparten color y se puede saltar la asignación.
+    let ultimo = '';
 
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const i = y * cols + x;
-        // Lo que la onda todavía no ha alcanzado no se dibuja
-        if ((this.cellDist[i] ?? 0) > reveal) continue;
+    for (const [minX, maxX, minY, maxY] of cajas) {
+      if (maxX < minX || maxY < minY) continue;
+      ctx.clearRect(minX * stepX, minY * cellH, (maxX - minX + 1) * stepX, (maxY - minY + 1) * cellH);
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+          const i = y * cols + x;
+          // Lo que la onda todavía no ha alcanzado no se dibuja
+          if ((this.cellDist[i] ?? 0) > reveal) continue;
 
-        const l = this.luma[i] ?? 0;
-        if (l < 0.12) continue;
+          const l = this.luma[i] ?? 0;
+          if (l < 0.12) continue;
 
-        const dist = pointerOn ? Math.hypot(x - px, y - py) : Infinity;
+          // Distancia AL CUADRADO: `Math.hypot` es lento (protege del desbordamiento, que aquí
+          // no puede pasar) y la inmensa mayoría de celdas solo necesita saber si cae fuera del
+          // radio. La raíz se saca únicamente dentro, que son unas pocas decenas de celdas.
+          const dx0 = x - px;
+          const dy0 = y - py;
+          const d2 = pointerOn ? dx0 * dx0 + dy0 * dy0 : Infinity;
 
-        if (dist <= radius) {
-          // Se eleva la luminancia y se densifica el glifo, pero el COLOR ya no es blanco
-          // plano: sale de `styleFor` con la mezcla de la sangría. Pintar aquí `--fg` a pelo
-          // tapaba justo el centro del derrame — medido: la saturación BAJABA un 23.5 %
-          // donde más debía subir. El círculo uniforme es lo que la sangría viene a sustituir.
-          const falloff = 1 - dist / radius;
-          const lifted = clamp(l + 0.18 * falloff, 0, 1);
-          ctx.fillStyle = this.styleFor(i, lifted, this.mixFor(i));
-          // El ripple va en el espacio ya estirado, por eso se divide por el factor
-          const dx = (Math.sin((y + this.lastShimmer * 0.002) * 1.7) * 2 * falloff * stepX) / this.cw;
-          ctx.fillText(denseChar(lifted, i, this.salt[i] ?? 0), x * stepX + dx, y * cellH);
-        } else {
-          ctx.fillStyle = this.styleFor(i, l, this.mixFor(i));
-          ctx.fillText(this.chars[i] ?? '', x * stepX, y * cellH);
+          if (d2 <= radius * radius) {
+            const dist = Math.sqrt(d2);
+            // Se eleva la luminancia y se densifica el glifo, pero el COLOR ya no es blanco
+            // plano: sale de `styleFor` con la mezcla de la sangría. Pintar aquí `--fg` a pelo
+            // tapaba justo el centro del derrame — medido: la saturación BAJABA un 23.5 %
+            // donde más debía subir. El círculo uniforme es lo que la sangría viene a sustituir.
+            const falloff = 1 - dist / radius;
+            const lifted = clamp(l + 0.18 * falloff, 0, 1);
+            const estilo = this.styleFor(i, lifted, this.mixFor(i));
+            if (estilo !== ultimo) {
+              ctx.fillStyle = estilo;
+              ultimo = estilo;
+            }
+            // El ripple va en el espacio ya estirado, por eso se divide por el factor
+            const dx = (Math.sin((y + this.lastShimmer * 0.002) * 1.7) * 2 * falloff * stepX) / this.cw;
+            ctx.fillText(denseChar(lifted, i, this.salt[i] ?? 0), x * stepX + dx, y * cellH);
+          } else {
+            const estilo = this.styleFor(i, l, this.mixFor(i));
+            if (estilo !== ultimo) {
+              ctx.fillStyle = estilo;
+              ultimo = estilo;
+            }
+            ctx.fillText(this.chars[i] ?? '', x * stepX, y * cellH);
+          }
         }
       }
     }
@@ -1022,8 +1118,14 @@ export class AsciiPortrait implements Module {
 
     this.frameMs = painted ? performance.now() - started : 0;
 
+    // El atributo se escribe 1 de cada 10 frames para no pagar una escritura de DOM por
+    // frame, así que publica el PEOR de su ventana y no el de un frame al azar: una lectura
+    // suelta seguía siendo un dato real. Quien necesite la distribución completa lee
+    // `lastFrameMs` de la instancia con `?debug`, que sí es por frame.
+    if (this.frameMs > this.frameMsPeak) this.frameMsPeak = this.frameMs;
     if (++this.frameCount % 10 === 0) {
-      this.canvas.dataset.frameMs = this.frameMs.toFixed(2);
+      this.canvas.dataset.frameMs = this.frameMsPeak.toFixed(2);
+      this.frameMsPeak = 0;
     }
   }
 

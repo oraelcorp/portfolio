@@ -22,9 +22,11 @@
   }
 
   .process__body {
-    /* Suelo de atenuación del scrollytelling. Vive aquí y no en el JS para que la media
-       query pueda cambiarlo: en móvil se ven 3-4 pasos a la vez y el 32 % no llega a AA. */
-    --process-dim: 0.32;
+    /* Suelo de atenuación del scrollytelling. El 0.32 original dejaba el texto inactivo en
+       1.51:1, muy por debajo de AA — en escritorio igual que en móvil: es el mismo texto a la
+       misma opacidad, y WCAG no tiene una excepción por "solo se ve uno a la vez".
+       Vive en CSS y no en el JS para poder ajustarlo sin tocar código. */
+    --process-dim: 0.6;
   }
 
   .process__step {
@@ -47,17 +49,21 @@
 
   .process__n {
     margin-top: 0.55em;
-    color: var(--on-surface-muted);
+    color: var(--on-surface);
   }
 
   .process__step-title {
     grid-column: 3;
   }
 
+  /* Color FUERTE, no el apagado: la jerarquía la da la opacidad del scrollytelling, y
+     encadenar un color apagado con una atenuación hunde el contraste. Medido: con
+     `--on-surface-muted` (4.73:1 a opacidad plena, ya al filo del 4.5) el suelo tendría que
+     ser 0.98 para cumplir AA, o sea ningún efecto. Con el color fuerte, 0.6 basta. */
   .process__step-desc {
     grid-column: 3;
     max-width: 34rem;
-    color: var(--on-surface-muted);
+    color: var(--on-surface);
   }
 
   /* Contenedor sticky con una media por paso, apiladas para el crossfade */
@@ -101,23 +107,6 @@
       order: -1;
     }
 
-    /* En escritorio ves un paso cada vez y el 32 % se lee como profundidad; en móvil ves
-       tres o cuatro juntos y es texto ilegible. Medido: el titular quedaba en 2.05:1 y la
-       descripción en 1.51:1, contra los 3 y 4.5 que exige AA.
-
-       Subir el suelo NO basta por sí solo: `--on-surface-muted` sobre el tema claro ya está
-       en 4.73:1 a opacidad plena, al filo del 4.5, así que cualquier atenuación lo rompe —
-       harían falta 0.98, o sea ningún efecto. Por eso en móvil la descripción y el número
-       usan también el color fuerte, que a 0.62 se queda en 4.87:1.
-       El encendido del paso activo se conserva: 0.62 frente a 1 sigue siendo una diferencia
-       clara, y el bullet del acento sigue marcando cuál está activo. */
-    .process__body {
-      --process-dim: 0.62;
-    }
-
-    .process__step-desc,
-    .process__n {
-      color: var(--on-surface);
-    }
+    /* El suelo de atenuación ya no depende del ancho: ver la nota de --process-dim. */
   }
 }

@@ -163,16 +163,17 @@ async function main(): Promise<void> {
     pegado.join(' · ') || 'ninguno',
   );
 
-  // --- Coste: sin los efectos de puntero, el retrato debe pintar menos
+  // --- Coste: sin los efectos de puntero, el retrato debe pintar menos.
+  // La instancia solo se expone con `?debug`, que aquí no está puesto, así que se lee el
+  // atributo del canvas —que publica el peor frame de cada ventana de diez—. Leer
+  // `__asciiPortrait` sin `?debug` devolvía `undefined` y esta línea reportaba 0.00 siempre.
   const ms = await page.evaluate(async () => {
-    const w = window as unknown as { __asciiPortrait?: { frameMs: number } };
     const s: number[] = [];
-    for (let i = 0; i < 30; i++) {
-      s.push(w.__asciiPortrait?.frameMs ?? 0);
+    for (let i = 0; i < 40; i++) {
+      s.push(Number(document.querySelector<HTMLElement>('[data-ascii]')?.dataset.frameMs ?? '0'));
       await new Promise((r) => requestAnimationFrame(() => r(null)));
     }
-    s.sort((a, b) => a - b);
-    return s[s.length - 1] ?? 0;
+    return Math.max(...s);
   });
   console.log(`      coste máximo de pintado del retrato en táctil: ${ms.toFixed(2)} ms`);
 

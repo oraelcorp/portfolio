@@ -307,9 +307,20 @@ async function testSecondHalf(browser: Browser): Promise<void> {
     media: [...document.querySelectorAll('[data-process-media-item]')].findIndex(
       (m) => (m as HTMLElement).dataset.active === 'true',
     ),
-    dimmed: [...document.querySelectorAll<HTMLElement>('[data-step]')].filter(
-      (s) => Number(getComputedStyle(s).opacity) < 0.6,
-    ).length,
+    // Se compara contra el suelo DECLARADO (--process-dim), no contra un número fijo: con
+    // un umbral de 0.6 a pelo, subir el suelo a exactamente 0.6 daba "0 atenuados" aunque
+    // la atenuación funcionara. El check tiene que seguir al diseño, no a una constante.
+    dimmed: (() => {
+      const body = document.querySelector('.process__body');
+      const suelo = body ? parseFloat(getComputedStyle(body).getPropertyValue('--process-dim')) : 0.32;
+      return [...document.querySelectorAll<HTMLElement>('[data-step]')].filter(
+        (s) => Number(getComputedStyle(s).opacity) <= suelo + 0.02,
+      ).length;
+    })(),
+    suelo: (() => {
+      const body = document.querySelector('.process__body');
+      return body ? getComputedStyle(body).getPropertyValue('--process-dim').trim() : '?';
+    })(),
   }));
 
   check(
@@ -317,7 +328,11 @@ async function testSecondHalf(browser: Browser): Promise<void> {
     firstActive.media !== lastActive.media && lastActive.media >= 0,
     `media ${firstActive.media} → ${lastActive.media}`,
   );
-  check('los pasos inactivos se atenúan', lastActive.dimmed >= 2, `${lastActive.dimmed} atenuados`);
+  check(
+    'los pasos inactivos se atenúan',
+    lastActive.dimmed >= 2,
+    `${lastActive.dimmed} atenuados al suelo declarado (${lastActive.suelo})`,
+  );
   await page.screenshot({ path: join(OUT, 'process-active.png') });
 
   // --- Work: la pestaña sigue al proyecto visible y la pill aparece bajo el cursor

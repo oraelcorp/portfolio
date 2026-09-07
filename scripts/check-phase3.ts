@@ -8,7 +8,7 @@ import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const PORT = 4175;
-const URL = `http://localhost:${PORT}/`;
+const URL = `http://localhost:${PORT}/?debug`;
 const OUT = resolve('screenshots', 'phase3');
 const CLIP = { x: 790, y: 0, width: 650, height: 900 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -38,6 +38,39 @@ async function waitForServer(timeoutMs = 40_000): Promise<void> {
 }
 
 /** Cuenta píxeles no negros del canvas y su reparto por color, para juzgar el render sin ojo humano. */
+/**
+ * Luminancia media de una caja del canvas, en coordenadas de VIEWPORT, compuesta sobre negro.
+ * Compuesta y no cruda: `getImageData` devuelve RGBA sin premultiplicar, así que sin componer
+ * mediría como si todo fuera opaco (el mismo error que ya costó una medición del peso).
+ */
+async function regionLuma(page: Page, vx: number, vy: number, r: number): Promise<number> {
+  return page.evaluate(
+    ({ vx, vy, r }) => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii]');
+      const ctx = canvas?.getContext('2d');
+      if (!canvas || !ctx) return 0;
+      const caja = canvas.getBoundingClientRect();
+      const escala = canvas.width / caja.width;
+      const cx = (vx - caja.left) * escala;
+      const cy = (vy - caja.top) * escala;
+      const rad = r * escala;
+      const x0 = Math.max(0, Math.round(cx - rad));
+      const y0 = Math.max(0, Math.round(cy - rad));
+      const w = Math.min(canvas.width - x0, Math.round(rad * 2));
+      const h = Math.min(canvas.height - y0, Math.round(rad * 2));
+      if (w <= 0 || h <= 0) return 0;
+      const d = ctx.getImageData(x0, y0, w, h).data;
+      let suma = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const al = (d[i + 3] ?? 0) / 255;
+        suma += (0.2126 * (d[i] ?? 0) + 0.7152 * (d[i + 1] ?? 0) + 0.0722 * (d[i + 2] ?? 0)) * al;
+      }
+      return suma / (w * h);
+    },
+    { vx, vy, r },
+  );
+}
+
 async function canvasStats(page: Page) {
   return page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii]');
@@ -154,16 +187,41 @@ async function main(): Promise<void> {
       `${a?.painted} → ${b?.painted}`,
     );
 
-    // ---- Puntero: aclara la zona hacia blanco
-    const beforePointer = await canvasStats(page);
-    await page.mouse.move(1120, 420, { steps: 20 });
+    // ---- Puntero: aclara la zona que toca.
+    // Se mide la LUMINANCIA MEDIA de una caja alrededor del cursor, no los píxeles casi
+    // blancos de todo el canvas. Aquel criterio venía de cuando el puntero pintaba un disco
+    // de `--fg` plano; ese disco se retiró el 2026-09-04 al entrar la sangría de color, que
+    // tiñe hacia los tonos reales de la foto en vez de hacia el blanco, y el empuje de
+    // luminancia bajó de 0.35 a 0.18. Contar blancos sobre el canvas entero daba diferencias
+    // del 0.4 % —ruido del shimmer— y el check pasaba o fallaba según la corrida.
+    const PX = 1120;
+    const PY = 420;
+    // Control en la misma corrida: una caja lejos del cursor, que NO debe aclararse. Sin él,
+    // un shimmer más activo o un repintado global harían pasar el check sin que el puntero
+    // hiciera nada. Es la contraparte de la lección del jank: correr siempre un control.
+    // El punto está ELEGIDO con tinta medida (luma 24.2, comparable a la del cursor) y a
+    // 291 px, muy por fuera del alcance máximo de la sangría (21 celdas ≈ 168 px). El primer
+    // control que puse caía en zona sin tinta y leía 0.0 → 0.0: no demostraba nada.
+    const LX = 1380;
+    const LY = 550;
+    const antesLuma = await regionLuma(page, PX, PY, 40);
+    const antesLejos = await regionLuma(page, LX, LY, 40);
+    await page.mouse.move(PX, PY, { steps: 20 });
     await sleep(600);
-    const withPointer = await canvasStats(page);
+    const conLuma = await regionLuma(page, PX, PY, 40);
+    const conLejos = await regionLuma(page, LX, LY, 40);
     await page.screenshot({ path: join(OUT, 'pointer.png'), clip: CLIP });
+    const subida = antesLuma > 0 ? (conLuma / antesLuma - 1) * 100 : 0;
     check(
       'el puntero aclara la zona que toca',
-      !!beforePointer && !!withPointer && withPointer.whiteish > beforePointer.whiteish,
-      `blanco ${beforePointer?.whiteish} → ${withPointer?.whiteish}`,
+      subida > 5,
+      `luminancia media ${antesLuma.toFixed(1)} → ${conLuma.toFixed(1)} (${subida >= 0 ? '+' : ''}${subida.toFixed(1)} %)`,
+    );
+    const deriva = antesLejos > 0 ? Math.abs(conLejos / antesLejos - 1) * 100 : 0;
+    check(
+      'y solo esa zona: lejos del cursor la luminancia no se mueve',
+      deriva < subida / 2,
+      `control a 291 px: ${antesLejos.toFixed(1)} → ${conLejos.toFixed(1)} (${deriva.toFixed(1)} % de deriva)`,
     );
     await page.mouse.move(300, 700, { steps: 15 });
     await sleep(500);
@@ -189,16 +247,37 @@ async function main(): Promise<void> {
       w.__raf = requestAnimationFrame(tick);
     });
 
-    // Movimiento continuo del puntero: cada frame repinta de verdad, que es el peor caso
-    const paintSamples: number[] = [];
+    // Movimiento continuo del puntero: cada frame repinta de verdad, que es el peor caso.
+    // El muestreo va DENTRO de la página, un dato POR FRAME, leyendo `lastFrameMs` de la
+    // instancia (por eso `?debug`). Antes leía `dataset.frameMs`, que se publica 1 de cada 10
+    // frames: cada valor se contaba diez veces y el p90 salía de ~20 datos distintos, no de
+    // los 200 que parecía. Así reportaba 5.6–7.7 ms donde el coste real es de ~1–2 ms.
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __paint: number[];
+        __paintOn: boolean;
+        __asciiPortrait?: { lastFrameMs: number };
+      };
+      w.__paint = [];
+      w.__paintOn = true;
+      const tick = (): void => {
+        if (!w.__paintOn) return;
+        const ms = w.__asciiPortrait?.lastFrameMs ?? 0;
+        if (ms > 0) w.__paint.push(ms);
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
     await page.mouse.move(1050, 300, { steps: 5 });
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 14; i++) {
       await page.mouse.move(1050 + (i % 2 === 0 ? 90 : -90), 300 + i * 22, { steps: 12 });
-      const ms = await page.evaluate(() =>
-        Number(document.querySelector<HTMLCanvasElement>('[data-ascii]')?.dataset.frameMs ?? '0'),
-      );
-      if (ms > 0) paintSamples.push(ms);
     }
+    await sleep(300);
+    const paintSamples = await page.evaluate(() => {
+      const w = window as unknown as { __paint: number[]; __paintOn: boolean };
+      w.__paintOn = false;
+      return w.__paint;
+    });
 
     const frameStats = await page.evaluate(() => {
       const w = window as unknown as Probe;

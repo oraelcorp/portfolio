@@ -33,7 +33,7 @@ function button(label: string, url: string, extra = ''): string {
   return `
     <span class="btn-group" data-cta>
       <span class="btn btn--icon btn--icon-in" aria-hidden="true">+</span>
-      <a class="btn btn--label" href="${href(url)}"${extra}><span class="btn__text" data-cta-text>${esc(label)}</span></a>
+      <a class="btn btn--label" href="${href(url)}"${extra}><span class="visually-hidden">${esc(label)}</span><span class="btn__text" data-cta-text aria-hidden="true">${esc(label)}</span></a>
       <span class="btn btn--icon btn--icon-out" aria-hidden="true">+</span>
     </span>`;
 }
@@ -63,13 +63,14 @@ function nav(): string {
     <a class="nav__logo t-pixel" href="#top" data-logo aria-label="${esc(site.meta.name)} — home">${esc(site.nav.logo)}</a>
 
     <button class="nav__menu t-mono" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">
-      <span data-menu-label>${esc(site.nav.menuLabel)}</span>
+      <span class="visually-hidden">${esc(site.nav.menuLabel)}</span>
+      <span data-menu-label aria-hidden="true">${esc(site.nav.menuLabel)}</span>
       <span class="nav__burger" aria-hidden="true"><span></span><span></span></span>
     </button>
 
     <div class="nav__cta btn-group" data-cta>
       <span class="btn btn--icon btn--icon-in" aria-hidden="true">+</span>
-      <a class="btn btn--label" href="${esc(site.nav.cta.href)}"><span class="btn__text" data-cta-text>${esc(site.nav.cta.label)}</span></a>
+      <a class="btn btn--label" href="${esc(site.nav.cta.href)}"><span class="visually-hidden">${esc(site.nav.cta.label)}</span><span class="btn__text" data-cta-text aria-hidden="true">${esc(site.nav.cta.label)}</span></a>
       <span class="btn btn--icon btn--icon-out" aria-hidden="true">+</span>
     </div>
   </header>
@@ -131,7 +132,7 @@ function hero(): string {
     <div class="hero__visual" data-hero-visual>
       <canvas class="hero__canvas" data-ascii aria-hidden="true"></canvas>
       <p class="visually-hidden">${esc(site.hero.canvasAlt)}</p>
-      <button class="hero__hint t-mono-sm" type="button" data-ascii-toggle>${esc(site.hero.asciiHint)}</button>
+      <button class="hero__hint t-mono-sm" type="button" data-ascii-toggle aria-pressed="false">${esc(site.hero.asciiHint)}</button>
     </div>
 
     <div class="hero__clients" data-hero-clients>
@@ -313,7 +314,8 @@ function faq(): string {
       (f, i) => `
       <li class="faq__item">
         <button class="faq__q t-mono" type="button" data-faq-q aria-expanded="false" aria-controls="faq-a-${i}">
-          <span data-faq-text>${esc(f.q)}</span>
+          <span class="visually-hidden">${esc(f.q)}</span>
+          <span data-faq-text aria-hidden="true">${esc(f.q)}</span>
           <span class="faq__icon" aria-hidden="true">+</span>
         </button>
         <div class="faq__a t-body" id="faq-a-${i}" hidden>${field(f.a)}</div>

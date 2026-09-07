@@ -21,7 +21,12 @@ export function initAscii(ready: Promise<void>): Module {
       interactive: true,
       // El indicador se sincroniza venga el cambio del canvas o del botón
       onModeChange: (mode) => {
-        if (toggle) toggle.textContent = mode === 'color' ? site.hero.asciiHintBack : site.hero.asciiHint;
+        if (!toggle) return;
+        toggle.textContent = mode === 'color' ? site.hero.asciiHintBack : site.hero.asciiHint;
+        // Es un interruptor de dos estados: el rótulo cambia para quien lo ve y `aria-pressed`
+        // lo dice para quien no. Sin él, el estado solo se deducía de un texto que además es
+        // una instrucción ("click to reveal"), no un estado.
+        toggle.setAttribute('aria-pressed', mode === 'color' ? 'true' : 'false');
       },
     });
     modules.push(portrait, initAsciiDebug(portrait));
