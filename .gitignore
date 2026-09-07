@@ -7,3 +7,6 @@ dist/
 # (los screenshots del sitio de referencia son solo para comparación, §9 Fase 0)
 recon/
 screenshots/
+
+# Logs temporales de medicion
+*.log

@@ -16,6 +16,7 @@
 import { gsap, ScrollTrigger } from '../../core/gsap.ts';
 import { clamp, isTouch, lerp, prefersReducedMotion, type Module } from '../../core/utils.ts';
 import { charForLuma, denseChar } from './charRamp.ts';
+import { colorDe, detectarRegiones, ACENTO_HOCICO, type PaletteMode } from './palette.ts';
 
 export interface AsciiOptions {
   src: string;
@@ -31,6 +32,14 @@ export interface AsciiOptions {
   highlightDelta?: number;
   /** El retrato del footer no necesita reveal ni modo color. */
   interactive?: boolean;
+  /**
+   * Cómo se colorea el modo color tras el clic (§6.3 punto 12, Fase 8).
+   * - `photo`: el RGB literal de la foto. Es lo que había, y sale pardo apagado — medido:
+   *   el sujeto entero cabe en 11° de tono.
+   * - `bands` / `ramp`: rampa diseñada sobre los cortes de Otsu. Ver `palette.ts`.
+   * El modo ASCII base (acento + blancos) NO se toca en ninguno de los tres.
+   */
+  palette?: PaletteMode;
   /** Avisa del cambio de modo, venga del canvas o del botón accesible. */
   onModeChange?: (mode: 'ascii' | 'color') => void;
   /** Familia del retrato. JetBrains Mono es monoespaciada; Silkscreen NO (avances desiguales). */
@@ -154,6 +163,8 @@ export class AsciiPortrait implements Module {
   private revealRadius = 0;
   private drawnRadius = 0;
   private colorMix = 0;
+  /** 1 en las celdas del interior del hocico, para el acento rojo. */
+  private hocico = new Uint8Array(0);
   private mode: 'ascii' | 'color' = 'ascii';
   private pointerX = -999;
   private pointerY = -999;
@@ -218,6 +229,8 @@ export class AsciiPortrait implements Module {
       smooth: 1.0,
       highlightDelta: 0.12,
       interactive: true,
+      // Por defecto la foto: nada cambia hasta que Javier apruebe la paleta (Fase 8, parte 1)
+      palette: 'photo',
       fontFamily: '"JetBrains Mono", ui-monospace, monospace',
       pixelSnap: true,
       // Sin estirar (decisión de Javier tras comparar en screenshots/type/): el estirado ×1.67
@@ -492,6 +505,14 @@ export class AsciiPortrait implements Module {
       }
     }
 
+    // Región del hocico para el acento de color. Se calcula UNA vez, aquí: depende solo de
+    // la foto muestreada, no del frame.
+    const regiones = detectarRegiones(this.rgb, this.luma, cols, rows, 0.12);
+    this.hocico = regiones.hocico;
+    this.canvas.dataset.regiones = JSON.stringify(
+      regiones.comps.slice(0, 6).map((c) => ({ n: c.n, x: +c.cx.toFixed(2), y: +c.cy.toFixed(2) })),
+    );
+
     for (let i = 0; i < total; i++) this.updateChar(i);
     this.buckets = this.makeBuckets(this.colorMix);
   }
@@ -548,9 +569,9 @@ export class AsciiPortrait implements Module {
       );
     }
 
-    const r = this.rgb[i * 3] ?? 0;
-    const g = this.rgb[i * 3 + 1] ?? 0;
-    const b = this.rgb[i * 3 + 2] ?? 0;
+    // El DESTINO de la mezcla es lo único que cambia entre paletas: la maquinaria del
+    // crossfade y de la sangría no se entera, así que la transición sigue igual.
+    const [r, g, b] = this.destinoColor(i, l);
 
     return this.rgba(
       lerp(base[0], r, mix),
@@ -558,6 +579,18 @@ export class AsciiPortrait implements Module {
       lerp(base[2], b, mix),
       lerp(alpha, 0.55 + 0.45 * l, mix),
     );
+  }
+
+  /** Hacia qué color tira el modo color en esta celda, según la paleta elegida. */
+  private destinoColor(i: number, l: number): readonly [number, number, number] {
+    const modo = this.opts.palette;
+    if (modo === 'photo') {
+      return [this.rgb[i * 3] ?? 0, this.rgb[i * 3 + 1] ?? 0, this.rgb[i * 3 + 2] ?? 0];
+    }
+    // Acento de región: el hocico manda sobre la rampa. Es el ÚNICO que los datos sostienen
+    // — ver `detectarRegiones`, donde está medido por qué la coronilla no da un componente.
+    if (this.hocico[i] === 1) return ACENTO_HOCICO;
+    return colorDe(modo, l);
   }
 
   private rgba(r: number, g: number, b: number, a: number): string {
@@ -987,6 +1020,16 @@ export class AsciiPortrait implements Module {
    * vez y se componen por opacidad. Contrapartida documentada: el shimmer queda congelado
    * durante los 0.9 s de la transición.
    */
+  /**
+   * Cambia la paleta del modo color en caliente y repinta. Para comparar variantes sin
+   * recompilar, igual que los sliders de `?debug` (Fase 8, parte 1).
+   */
+  setPalette(modo: PaletteMode): void {
+    this.opts.palette = modo;
+    this.buckets = this.makeBuckets(this.colorMix);
+    this.paintAll();
+  }
+
   toggleMode(): void {
     if (this.fading || !this.image) return;
 
