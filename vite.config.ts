@@ -20,7 +20,14 @@ export default defineConfig({
       transformIndexHtml: {
         order: 'pre',
         handler(html: string): string {
-          return html.replace('<!--@site-->', renderSite()).replace('<!--@head-->', renderHead());
+          // Sello del build. Existe por el bug de 2026-09-08: probando desde el móvil contra el
+          // servidor del PC no había forma de saber si el teléfono estaba viendo el arreglo o un
+          // `index.html` cacheado de antes. Ahora `?diag` lo enseña en pantalla.
+          const sello = new Date().toISOString().replace('T', ' ').slice(0, 19);
+          return html
+            .replace('<!--@site-->', renderSite())
+            .replace('<!--@head-->', renderHead())
+            .replace('<!--@build-->', `<meta name="javier:build" content="${sello}" />`);
         },
       },
     },

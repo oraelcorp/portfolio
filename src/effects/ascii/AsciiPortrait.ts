@@ -217,17 +217,39 @@ export class AsciiPortrait implements Module {
 
     const { onModeChange, ...rest } = options;
     this.opts = {
-      // Grid MEDIDO en la referencia (scripts/measure-grid.ts): 7.56 px, celdas cuadradas.
-      cellW: 7.56,
-      cellH: 7.56,
+      // Celda 4.00: se ABANDONA a propósito el 7.56 medido en la referencia
+      // (scripts/measure-grid.ts) para ganar densidad — x3.6 celdas, 162x225. El 7.56 sigue
+      // siendo el dato correcto sobre good-fella.com; esto es una divergencia deliberada, no
+      // una corrección de aquella medida. Límites que sitúan el 4.00 como suelo práctico
+      // (scripts/measure-density.ts + measure-paint-scaling.ts + measure-detail.ts):
+      //   · legibilidad — el glifo baja a 8.0 px de dispositivo; a celda 3.0 son 4.5 px y deja
+      //     de leerse como carácter;
+      //   · `paintAll` — 21 ms aquí, pero hay un acantilado entre 3.5 y 3.0 (26 -> 82 ms);
+      //   · la foto — 3.07 px de fuente por celda, aún por encima de los ~2.5 donde
+      //     518x691 empieza a limitar (por eso una foto de más resolución no compra nada).
+      cellW: 4,
+      cellH: 4,
       // 0 = automático: se deduce del alto real de la tinta para que el glifo quepa en la celda
       fontSize: 0,
       pointerRadius: 6,
       contrast: 1.4,
       // Calibrados contra la proporción de highlights medida en la referencia (24 % de las
-      // celdas con color): esta pareja da 20.3 %. Ver scripts/tune-highlights.ts.
-      smooth: 1.0,
-      highlightDelta: 0.12,
+      // celdas con color). Ver scripts/measure-detail.ts y scripts/verify-combined.ts.
+      //
+      // `smooth` baja de 1.0 a 0.6: el suavizado a 1.0 destruía el 25 % del detalle local
+      // (grad 0.1946 -> 0.1457) y el ruido de pelaje que lo justificaba NO aparece — a
+      // smooth 0 los highlights son 91.5 % cadenas estructurales y solo 2.2 % celdas
+      // aisladas. Lo que trae el moteado es SUBIR el umbral, no bajar el blur: un umbral
+      // alto solo deja pasar picos de contraste extremo, que es exactamente el pelaje.
+      //
+      // `highlightDelta` NO es transferible entre tamaños de celda y por eso no es el 0.16
+      // que calibró measure-detail.ts a celda 7.56: el highlight se decide contra las 8
+      // vecinas, y al reducir la celda esas vecinas caen más juntas en la foto, así que el
+      // contraste local baja y el mismo umbral da MENOS highlights (0.16 a celda 4.00 se
+      // desploma a 12.2 %, la mitad del objetivo). Re-barrido a esta densidad, 0.11 da
+      // 24.1 % frente al 24.0 % de la referencia.
+      smooth: 0.6,
+      highlightDelta: 0.11,
       interactive: true,
       // Por defecto la foto: nada cambia hasta que Javier apruebe la paleta (Fase 8, parte 1)
       palette: 'photo',
@@ -260,6 +282,11 @@ export class AsciiPortrait implements Module {
     if (!bctx) throw new Error('Canvas de suavizado no disponible');
     this.blurCtx = bctx;
 
+    // El retrato pinta sobre casi-negro, así que NO usa el relleno de marca: usa la variante
+    // clara del acento. Con la guinda a pelo (luminancia 0.096 contra 0.734 del verde anterior)
+    // el dibujo se apaga — está medido en `measure-acento.ts`. El respaldo del token lleva el
+    // MISMO valor que `tokens.css`: un respaldo desactualizado reintroduce el color viejo sin
+    // que nadie se entere, que es justo lo que la auditoría encontró con el verde.
     this.accent = hexToRgb(readToken('--accent', '#39ff6a'));
     this.fg = hexToRgb(readToken('--fg', '#eeeeee'));
     this.buildStyleCache();

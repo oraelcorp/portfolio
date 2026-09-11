@@ -8,6 +8,33 @@
          site.ts (src/render/head.ts). Escritas a mano aquí duplicaban el copy y §5 pide una
          sola fuente de texto. -->
     <!--@head-->
+    <!--@build-->
+
+    <!--
+      Captura de errores para el panel de `?diag`. Va EN LÍNEA y antes del módulo a propósito:
+      un fallo al cargar o evaluar `main.ts` no lo vería un manejador instalado desde dentro de
+      `main.ts`, y ese es justo el caso que hay que poder ver en un teléfono sin depurador.
+    -->
+    <script>
+      (function () {
+        var lista = [];
+        window.__errores = lista;
+        var apunta = function (origen, texto) {
+          if (lista.length < 40) lista.push(origen + ': ' + texto);
+        };
+        window.addEventListener('error', function (e) {
+          apunta('error', e.message + (e.filename ? ' @ ' + e.filename + ':' + e.lineno : ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          apunta('promesa', String((e.reason && e.reason.message) || e.reason));
+        });
+        var orig = console.error;
+        console.error = function () {
+          apunta('console', Array.prototype.join.call(arguments, ' '));
+          orig.apply(console, arguments);
+        };
+      })();
+    </script>
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 

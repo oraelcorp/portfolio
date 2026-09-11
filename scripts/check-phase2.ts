@@ -57,14 +57,28 @@ async function testPreloader(browser: Browser): Promise<void> {
     const el = document.querySelector('[data-preloader]');
     if (!el) return null;
     const cs = getComputedStyle(el);
+    // El acento se resuelve AQUÍ, del token, y se normaliza a rgb() pintándolo en un elemento
+    // de usar y tirar: así la comparación es color contra color y no cadena contra cadena.
+    const sonda = document.createElement('span');
+    sonda.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    document.body.appendChild(sonda);
+    const accentRgb = getComputedStyle(sonda).color;
+    sonda.remove();
     return {
       bg: cs.backgroundColor,
+      accentRgb,
       visible: cs.display !== 'none',
       loading: document.documentElement.dataset.loading,
     };
   });
   check('el preloader se muestra al entrar', early?.visible === true, JSON.stringify(early));
-  check('usa el color de acento como fondo', early?.bg === 'rgb(57, 255, 106)', early?.bg ?? 'sin dato');
+  // El color esperado NO se escribe a mano: se lee del token, que es la fuente de verdad. Con el
+  // verde literal aquí, cambiar el acento tumbaba este check sin que hubiera nada roto.
+  check(
+    'usa el color de acento como fondo',
+    early?.bg === early?.accentRgb,
+    `${early?.bg ?? 'sin dato'} (token: ${early?.accentRgb ?? 'sin dato'})`,
+  );
   await page.screenshot({ path: join(OUT, 'preloader-early.png') });
 
   await sleep(700);

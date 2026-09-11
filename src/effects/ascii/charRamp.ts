@@ -9,7 +9,7 @@ export const DENSE = ` .'\`^",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdb
  * Bandas de densidad progresiva. Cada una aporta varios glifos para que el shimmer
  * tenga de dónde elegir sin cambiar el peso visual de la celda.
  */
-const BANDS: ReadonlyArray<{ max: number; chars: string }> = [
+export const BANDS: ReadonlyArray<{ max: number; chars: string }> = [
   { max: 0.2, chars: ".'`" },
   { max: 0.28, chars: ':,;' },
   { max: 0.36, chars: '-~+' },
@@ -23,7 +23,7 @@ const BANDS: ReadonlyArray<{ max: number; chars: string }> = [
 ];
 
 /** Por debajo de esto la celda queda vacía. */
-const EMPTY = 0.12;
+export const EMPTY = 0.12;
 
 /**
  * Hash determinista por celda: la misma celda elige siempre el mismo carácter mientras

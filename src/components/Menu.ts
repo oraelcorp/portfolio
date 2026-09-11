@@ -90,10 +90,20 @@ export function initMenu(): Module {
 
     tl?.kill();
 
+    // Lenis se reanuda AQUÍ, al empezar a cerrar, no al terminar la animación. Ese retraso de
+    // 0.6 s era el bug de 2026-09-08: en móvil los enlaces del menú no navegaban a ninguna
+    // parte. Al tocar un enlace, el listener del panel (que está más adentro) corre antes que
+    // el de anclas de `main.ts`, así que cuando este llamaba a `scrollTo` Lenis seguía parado
+    // — y Lenis descarta el scrollTo si `isStopped` (lenis.mjs:755, `if ((this.isStopped ||
+    // this.isLocked) && !force) return`). El menú se cerraba y la página no se movía. En
+    // escritorio no se veía porque ahí los enlaces de sección están en la barra, fuera del
+    // panel, y con Lenis en marcha. Medido en `diag-movil.ts`: mismo enlace, y=0 con el menú
+    // y y=3543 (destino 3623) con Lenis en marcha.
+    getLenis()?.start();
+
     const finish = (): void => {
       panel.dataset.open = 'false';
       panel.setAttribute('inert', '');
-      getLenis()?.start();
       if (returnFocus) toggle.focus({ preventScroll: true });
     };
 

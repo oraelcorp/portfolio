@@ -4,11 +4,13 @@
 import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
 import { startPreview } from './lib/preview.ts';
+import { confirmarPuntero } from './lib/pointer.ts';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { LEER_ACENTO, ES_ACENTO_FN } from './lib/acento.ts';
 
 const PORT = 4175;
-const URL = `http://localhost:${PORT}/?debug`;
+const URL = `http://localhost:${PORT}/?2d&debug`;
 const OUT = resolve('screenshots', 'phase3');
 const CLIP = { x: 790, y: 0, width: 650, height: 900 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -72,8 +74,10 @@ async function regionLuma(page: Page, vx: number, vy: number, r: number): Promis
 }
 
 async function canvasStats(page: Page) {
-  return page.evaluate(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>('[data-ascii]');
+  return page.evaluate(`(() => {
+    const ACC = ${LEER_ACENTO};
+    ${ES_ACENTO_FN}
+    const canvas = document.querySelector('[data-ascii]');
     if (!canvas) return null;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
@@ -82,6 +86,10 @@ async function canvasStats(page: Page) {
     const data = ctx.getImageData(0, 0, width, height).data;
 
     let painted = 0;
+    // Ojo: sin acentos graves aqui dentro, que esto vive en una plantilla de cadena.
+    // greenish conserva el nombre por compatibilidad con el resto de la sonda, pero ya no mira
+    // el verde: reconoce el ACENTO vigente (ver lib/acento.ts). Con el acento en guinda, "gana
+    // el canal verde" dejaba de encontrar nada.
     let greenish = 0;
     let whiteish = 0;
     let warm = 0; // ámbar/naranja: solo aparece en modo color
@@ -100,13 +108,22 @@ async function canvasStats(page: Page) {
       if (y < height / 2) topPainted++;
       else bottomPainted++;
 
-      if (g > r + 40 && g > b + 40) greenish++;
+      if (esAcento(r, g, b)) greenish++;
       else if (r > 150 && g > 150 && b > 150) whiteish++;
       else if (r > g + 25 && g > b + 15) warm++;
     }
 
     return { width, height, painted, greenish, whiteish, warm, topPainted, bottomPainted };
-  });
+  })()`) as Promise<{
+    width: number;
+    height: number;
+    painted: number;
+    greenish: number;
+    whiteish: number;
+    warm: number;
+    topPainted: number;
+    bottomPainted: number;
+  } | null>;
 }
 
 async function main(): Promise<void> {
@@ -129,6 +146,15 @@ async function main(): Promise<void> {
     // ---- Reveal por scanline: arranca al salir el preloader, así que se mide justo después
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForFunction(() => !document.querySelector('[data-preloader]'), null, { timeout: 12_000 });
+    // Desde la migración a WebGL (2026-09-08) el Canvas 2D es el FALLBACK y se carga con
+    // `import()` dinámico, así que ya no basta con que se vaya el preloader: hay que esperar a
+    // que la INSTANCIA exista. Solo eso: esperar aquí a que la onda TERMINE dejaría sin
+    // muestras al check que mide su progresión, que es justo el siguiente.
+    await page.waitForFunction(
+      () => Boolean((window as unknown as { __asciiPortrait?: unknown }).__asciiPortrait),
+      null,
+      { timeout: 25_000 },
+    );
     // El barrido dura 1.4 s. Muestrearlo desde Node es poco fiable: cada consulta cuesta ~50 ms
     // de ida y vuelta y se pierden muestras. La serie se graba DENTRO de la página con rAF y se
     // lee una sola vez al final.
@@ -204,9 +230,16 @@ async function main(): Promise<void> {
     // control que puse caía en zona sin tinta y leía 0.0 → 0.0: no demostraba nada.
     const LX = 1380;
     const LY = 550;
+    // El puntero se mide con el retrato YA dibujado del todo: con la onda a medias la
+    // luminancia de la zona sube por el barrido, no por el cursor (daba +4.8 % en vez de +20 %).
+    await page.waitForFunction(
+      () => document.querySelector<HTMLCanvasElement>('[data-ascii]')?.dataset.reveal === '1.000',
+      null,
+      { timeout: 25_000 },
+    );
     const antesLuma = await regionLuma(page, PX, PY, 40);
     const antesLejos = await regionLuma(page, LX, LY, 40);
-    await page.mouse.move(PX, PY, { steps: 20 });
+    await confirmarPuntero(page, PX, PY, '2d');
     await sleep(600);
     const conLuma = await regionLuma(page, PX, PY, 40);
     const conLejos = await regionLuma(page, LX, LY, 40);

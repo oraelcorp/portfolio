@@ -3,6 +3,7 @@
 
 import './styles/index.css';
 import { initLenis, scrollToTarget } from './core/lenis.ts';
+import { initDiag } from './core/diag.ts';
 import { initPreloader } from './core/preloader.ts';
 import { initNav } from './components/Nav.ts';
 import { initMenu } from './components/Menu.ts';
@@ -46,6 +47,15 @@ function initAnchors(): Module {
 }
 
 function boot(): void {
+  // El panel de `?diag` se monta APARTE y antes que nada. En `boot()` los argumentos se evalúan
+  // todos antes del primer `push`, así que si cualquier `init*` lanza no se registraría ninguno
+  // — y el panel es justo lo que hace falta para ver POR QUÉ lanzó, en un teléfono sin depurador.
+  try {
+    modules.push(initDiag());
+  } catch (e) {
+    console.error('El panel de diagnóstico no arrancó:', e);
+  }
+
   const preloader = initPreloader();
   modules.push(
     preloader,

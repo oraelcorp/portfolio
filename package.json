@@ -11,7 +11,9 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "shots": "node scripts/screenshots.ts",
-    "recon": "node scripts/recon.ts"
+    "recon": "node scripts/recon.ts",
+    "verify": "npm run build && node scripts/verify.ts",
+    "movil": "npm run build && vite preview --host --port 4173"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

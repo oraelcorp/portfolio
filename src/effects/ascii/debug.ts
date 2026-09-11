@@ -14,17 +14,19 @@ interface Slider {
 }
 
 const SLIDERS: Slider[] = [
-  { label: 'cellW', min: 4, max: 16, step: 1, value: 8, apply: (p, v) => p.update({ cellW: v }) },
-  { label: 'cellH', min: 6, max: 24, step: 1, value: 12, apply: (p, v) => p.update({ cellH: v }) },
-  { label: 'fontSize', min: 6, max: 20, step: 1, value: 11, apply: (p, v) => p.update({ fontSize: v }) },
+  // Los `value` reflejan los defaults reales de AsciiPortrait: si divergen, el panel miente
+  // sobre lo que se está viendo hasta que se toca el primer slider.
+  { label: 'cellW', min: 2, max: 16, step: 0.5, value: 4, apply: (p, v) => p.update({ cellW: v }) },
+  { label: 'cellH', min: 2, max: 24, step: 0.5, value: 4, apply: (p, v) => p.update({ cellH: v }) },
+  { label: 'fontSize', min: 4, max: 20, step: 1, value: 0, apply: (p, v) => p.update({ fontSize: v }) },
   { label: 'contrast', min: 0.6, max: 3, step: 0.1, value: 1.4, apply: (p, v) => p.update({ contrast: v }) },
-  { label: 'smooth', min: 0, max: 4, step: 0.1, value: 1.0, apply: (p, v) => p.update({ smooth: v }) },
+  { label: 'smooth', min: 0, max: 4, step: 0.1, value: 0.6, apply: (p, v) => p.update({ smooth: v }) },
   {
     label: 'hlDelta',
     min: 0.05,
     max: 0.6,
     step: 0.01,
-    value: 0.12,
+    value: 0.11,
     apply: (p, v) => p.update({ highlightDelta: v }),
   },
   { label: 'radius', min: 1, max: 20, step: 1, value: 6, apply: (p, v) => p.update({ pointerRadius: v }) },
