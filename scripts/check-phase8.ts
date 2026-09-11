@@ -42,9 +42,9 @@ async function esperarRetrato(page: Page): Promise<void> {
  * Cuenta píxeles con tinta y los clasifica en ACENTO y blanco.
  *
  * El acento se reconoce por su proporción entre canales contra el token vigente, no por "gana el
- * verde" como hasta el 2026-09-10: eso ataba la sonda a `#39FF6A`, y al mover la marca a guinda
- * el acento pasó a ser rojo-dominante — indistinguible de la paleta cálida con el criterio
- * viejo. Ver `lib/acento.ts`.
+ * verde" como hasta el 2026-09-10: eso ataba la sonda a `#39FF6A`. Lo destapó una prueba de
+ * cambio de marca que se descartó, pero el fallo era real — con un acento rojo-dominante esta
+ * sonda no distinguía el modo ASCII del modo color. Ver `lib/acento.ts`.
  */
 async function tinta(page: Page): Promise<{ total: number; verde: number; blanco: number; calidos: number }> {
   return page.evaluate(`(() => {

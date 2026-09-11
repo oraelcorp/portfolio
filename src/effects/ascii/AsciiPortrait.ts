@@ -282,11 +282,11 @@ export class AsciiPortrait implements Module {
     if (!bctx) throw new Error('Canvas de suavizado no disponible');
     this.blurCtx = bctx;
 
-    // El retrato pinta sobre casi-negro, así que NO usa el relleno de marca: usa la variante
-    // clara del acento. Con la guinda a pelo (luminancia 0.096 contra 0.734 del verde anterior)
-    // el dibujo se apaga — está medido en `measure-acento.ts`. El respaldo del token lleva el
-    // MISMO valor que `tokens.css`: un respaldo desactualizado reintroduce el color viejo sin
-    // que nadie se entere, que es justo lo que la auditoría encontró con el verde.
+    // OJO con el respaldo del token: tiene que llevar el MISMO valor que `tokens.css`. Un
+    // respaldo desactualizado reintroduce el color viejo sin que nadie se entere, y aquí se
+    // nota más que en ningún otro sitio — el retrato pinta su base con el acento sobre
+    // casi-negro, así que su legibilidad depende de la luminancia del color de marca
+    // (`measure-acento.ts` la mide para cualquier candidato).
     this.accent = hexToRgb(readToken('--accent', '#39ff6a'));
     this.fg = hexToRgb(readToken('--fg', '#eeeeee'));
     this.buildStyleCache();

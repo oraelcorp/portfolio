@@ -1394,11 +1394,11 @@ export class AsciiPortraitGL implements Module {
     gl.uniform1fv(gl.getUniformLocation(p, 'u_bandMax'), Float32Array.from(BAND_MAX));
     gl.uniform1fv(gl.getUniformLocation(p, 'u_bandOff'), Float32Array.from(BAND_OFFSET));
     gl.uniform1fv(gl.getUniformLocation(p, 'u_bandCnt'), Float32Array.from(BAND_COUNT));
-    // El retrato pinta sobre casi-negro, así que NO usa el relleno de marca: usa la variante
-    // clara del acento. Con la guinda a pelo (luminancia 0.096 contra 0.734 del verde anterior)
-    // el dibujo se apaga — está medido en `measure-acento.ts`. El respaldo del token lleva el
-    // MISMO valor que `tokens.css`: un respaldo desactualizado reintroduce el color viejo sin
-    // que nadie se entere, que es justo lo que la auditoría encontró con el verde.
+    // OJO con el respaldo del token: tiene que llevar el MISMO valor que `tokens.css`. Un
+    // respaldo desactualizado reintroduce el color viejo sin que nadie se entere, y aquí se
+    // nota más que en ningún otro sitio — el retrato pinta su base con el acento sobre
+    // casi-negro, así que su legibilidad depende de la luminancia del color de marca
+    // (`measure-acento.ts` la mide para cualquier candidato).
     gl.uniform3fv(gl.getUniformLocation(p, 'u_accent'), hexToRgb(readToken('--accent', '#39ff6a')));
     gl.uniform3fv(gl.getUniformLocation(p, 'u_fg'), hexToRgb(readToken('--fg', '#eeeeee')));
     gl.uniform1f(gl.getUniformLocation(p, 'u_hlDelta'), this.opts.highlightDelta);

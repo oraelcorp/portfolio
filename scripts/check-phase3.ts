@@ -88,8 +88,8 @@ async function canvasStats(page: Page) {
     let painted = 0;
     // Ojo: sin acentos graves aqui dentro, que esto vive en una plantilla de cadena.
     // greenish conserva el nombre por compatibilidad con el resto de la sonda, pero ya no mira
-    // el verde: reconoce el ACENTO vigente (ver lib/acento.ts). Con el acento en guinda, "gana
-    // el canal verde" dejaba de encontrar nada.
+    // el verde: reconoce el ACENTO vigente (ver lib/acento.ts). Con un acento que no fuera
+    // verde, "gana el canal verde" dejaba de encontrar nada.
     let greenish = 0;
     let whiteish = 0;
     let warm = 0; // ámbar/naranja: solo aparece en modo color

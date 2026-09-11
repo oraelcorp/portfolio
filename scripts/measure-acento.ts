@@ -1,12 +1,13 @@
-// scripts/measure-acento.ts — ¿aguanta el retrato con el acento en guinda?
+// scripts/measure-acento.ts — ¿cuánto aguanta el retrato si cambia el color de acento?
 //
-// El retrato pinta su base con el acento sobre casi-negro, así que el cambio de marca le afecta
-// más que a ningún otro componente: el verde anterior tenía luminancia 0.734 y una guinda de
-// marca está en 0.096. Siete veces menos luz sobre un fondo oscuro no es un matiz de color, es
-// un dibujo que se apaga.
+// El retrato pinta su base con el acento sobre casi-negro, así que un cambio de marca le afecta
+// más que a ningún otro componente: lo que en un botón es un matiz de color, aquí es un dibujo
+// que se apaga o no. El verde actual tiene luminancia 0.734 y va sobrado; un acento oscuro no.
 //
 // Se mide lo que se ve: luminancia media de la tinta pintada y contraste contra el fondo real
-// del hero. El verde viejo entra en la tabla como referencia de lo que había.
+// del hero. El acento vigente encabeza la tabla como referencia. Se escribió al auditar un
+// cambio de marca a guinda —descartado— y se queda porque la pregunta vuelve con cada color:
+// antes de mover el acento, esto dice lo que le cuesta al retrato.
 import { chromium } from 'playwright';
 import { startPreview } from './lib/preview.ts';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -16,13 +17,16 @@ const PORT = 4270;
 const OUT = resolve('screenshots', 'acento');
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** Candidatos para la base del retrato. El primero es lo que había. */
+/**
+ * Candidatos a barrer. El primero es el acento vigente, que sirve de referencia; los demás
+ * cubren el rango de luminancia que suele tener un color de marca, de oscuro a claro.
+ */
 const CANDIDATOS: Array<[string, string]> = [
-  ['#39ff6a (verde, antes)', '#39ff6a'],
-  ['#a61e4d (guinda de marca)', '#a61e4d'],
+  ['#39ff6a (acento actual)', '#39ff6a'],
+  ['#a61e4d (oscuro)', '#a61e4d'],
   ['#c41e4d', '#c41e4d'],
-  ['#ee5f86 (on-dark, aplicado)', '#ee5f86'],
-  ['#ff8fa6', '#ff8fa6'],
+  ['#ee5f86 (medio)', '#ee5f86'],
+  ['#ff8fa6 (claro)', '#ff8fa6'],
 ];
 
 const TOPE_MS = 7 * 60 * 1000;
@@ -83,7 +87,7 @@ try {
   for (const [nombre, hex] of CANDIDATOS) {
     await page.evaluate(
       ({ h }) => {
-        document.documentElement.style.setProperty('--accent-ascii', h);
+        document.documentElement.style.setProperty('--accent', h);
         const w = window as unknown as { __asciiGL?: { refrescarTokens?: () => void } };
         w.__asciiGL?.refrescarTokens?.();
       },

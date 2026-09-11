@@ -1,10 +1,10 @@
 // scripts/lib/acento.ts — reconocer el ACENTO en una captura sin dar por hecho de qué color es.
 //
 // Hasta el 2026-09-10 media docena de sondas distinguían "ASCII" de "color" preguntando si el
-// canal VERDE mandaba, porque el acento del sitio era `#39FF6A`. Al mover la marca a guinda eso
-// deja de significar nada: el acento pasa a ser rojo-dominante, igual que la paleta cálida del
-// modo color, y las sondas dejan de poder separar los dos modos — no porque el retrato falle,
-// sino porque el criterio estaba atado a un color concreto.
+// canal VERDE mandaba, porque el acento del sitio es `#39FF6A`. Lo destapó una prueba de cambio
+// de marca —a un acento rojo-dominante— que al final se descartó: con ese acento las sondas
+// dejaban de poder separar los dos modos, no porque el retrato fallara, sino porque el criterio
+// estaba atado a un color concreto. El color volvió al verde; el criterio se queda arreglado.
 //
 // La regla buena no mira el tono: compara la PROPORCIÓN entre canales contra el acento que el
 // sitio tenga puesto en ese momento, leído de su token. Así sobrevive al siguiente cambio de
@@ -13,8 +13,7 @@
 /** Expresión para `page.evaluate`: devuelve el acento vigente como [r,g,b] 0-255. */
 export const LEER_ACENTO = `(() => {
   const sonda = document.createElement('span');
-  sonda.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent-ascii').trim()
-    || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  sonda.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
   document.body.appendChild(sonda);
   const m = getComputedStyle(sonda).color.match(/\\d+/g) || ['0', '0', '0'];
   sonda.remove();
