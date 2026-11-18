@@ -65,7 +65,9 @@
 
   .t-body-lg {
     font-size: var(--fs-body-lg);
-    line-height: 1.35;
+    /* El 1.35 estaba escrito a pelo aquí y se saltaba el token. La referencia usa 1.50 en su
+       texto corrido, medido, y a 20 px se nota: el párrafo respira en vez de apelmazarse. */
+    line-height: var(--lh-body);
     letter-spacing: -0.015em;
   }
 

@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 import { startPreview } from './lib/preview.ts';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { LEER_ACENTO, ES_ACENTO_FN } from './lib/acento.ts';
 
 const PORT = 4205;
 const URL = `http://localhost:${PORT}/`;
@@ -61,24 +62,36 @@ async function main(): Promise<void> {
   const sinHover = await page.evaluate(() => window.matchMedia('(hover: none)').matches);
   check('el contexto se comporta como táctil', sinHover, `(hover: none) = ${sinHover}`);
 
-  // --- La pill de work no debe existir siquiera
+  // --- La pill que persigue al cursor no puede estar activa en táctil
+  //
+  // Lo que importa es el RESULTADO: que no se vea ni siga a nada. La versión anterior exigía
+  // `display === 'none'`, que es UN mecanismo de desactivarla — si mañana se resuelve no
+  // montándola, o con `visibility`, o con una caja de tamaño cero, el resultado sería el mismo
+  // y el check habría fallado. Ahora se pregunta si está activa, se llegue como se llegue.
   await page.evaluate(() =>
     document.querySelector('[data-section="work"]')?.scrollIntoView({ block: 'start' }),
   );
   await sleep(1200);
   const pill = await page.evaluate(() => {
     const f = document.querySelector<HTMLElement>('[data-work-follower]');
+    if (!f) return { activa: false, motivo: 'no se monta en el DOM' };
+    const cs = getComputedStyle(f);
+    const r = f.getBoundingClientRect();
+    const razones: string[] = [];
+    if (cs.display === 'none') razones.push('display:none');
+    if (cs.visibility === 'hidden') razones.push('visibility:hidden');
+    if (Number(cs.opacity) < 0.02) razones.push('opacidad 0');
+    if (r.width < 2 || r.height < 2) razones.push('caja de tamaño cero');
+    if (!f.hasAttribute('data-ready')) razones.push('sin data-ready (no inicializada)');
     return {
-      existe: !!f,
-      listo: f?.hasAttribute('data-ready') ?? false,
-      display: f ? getComputedStyle(f).display : '-',
+      activa: razones.length === 0,
+      motivo:
+        razones.length > 0
+          ? razones.join(' · ')
+          : `visible ${Math.round(r.width)}x${Math.round(r.height)} y lista`,
     };
   });
-  check(
-    'la pill que persigue al cursor está desactivada',
-    !pill.listo && pill.display === 'none',
-    `data-ready=${pill.listo} display=${pill.display}`,
-  );
+  check('la pill que persigue al cursor no está activa en táctil', !pill.activa, pill.motivo);
 
   // --- Un toque sobre la figura no debe dejar la pill visible
   const fig = await page.locator('.work__figure').first().boundingBox();
@@ -105,18 +118,59 @@ async function main(): Promise<void> {
   // --- El retrato: sin efecto de puntero, pero el toque para alternar color SÍ funciona
   await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(1000);
-  const antes = await page.evaluate(
-    () => document.querySelector('[data-ascii]')?.getAttribute('data-mode') ?? '?',
+  // Se mide el RESULTADO —el retrato se llena de color— y no el atributo de un motor concreto.
+  //
+  // Esto llevaba fallando desde el 2026-09-08 sin que fuera un fallo del producto: leía
+  // `data-mode`, que publica el Canvas 2D, y al pasar el camino por defecto a WebGL —que publica
+  // `data-gl-mode`— devolvía "?" en los dos lados. El toque funcionaba perfectamente; lo que
+  // estaba roto era la pregunta. Contar píxeles cálidos sobrevive al siguiente cambio de motor.
+  const calidos = async (): Promise<number> =>
+    (await page.evaluate(`(() => {
+      const ACC = ${LEER_ACENTO};
+      ${ES_ACENTO_FN}
+      const c = document.querySelector('[data-ascii]');
+      if (!c) return -1;
+      const off = document.createElement('canvas');
+      off.width = c.width; off.height = c.height;
+      const x = off.getContext('2d', { willReadFrequently: true });
+      x.drawImage(c, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const R = d[i], G = d[i + 1], B = d[i + 2];
+        if (0.2126 * R + 0.7152 * G + 0.0722 * B < 26) continue;
+        if (esAcento(R, G, B)) continue;
+        const mx = Math.max(R, G, B), mn = Math.min(R, G, B);
+        if ((mx - mn) / (mx || 1) < 0.18) continue;
+        if (R > G && G > B) n++;
+      }
+      return n;
+    })()`)) as number;
+
+  const antes = await calidos();
+  const modoAntes = await page.evaluate(
+    () =>
+      document.querySelector<HTMLElement>('[data-ascii]')?.dataset.glMode ??
+      document.querySelector<HTMLElement>('[data-ascii]')?.dataset.mode ??
+      '?',
   );
   const canvas = await page.locator('[data-ascii]').boundingBox();
   if (canvas) {
     await page.touchscreen.tap(canvas.x + canvas.width / 2, canvas.y + canvas.height * 0.6);
     await sleep(1600);
   }
-  const despues = await page.evaluate(
-    () => document.querySelector('[data-ascii]')?.getAttribute('data-mode') ?? '?',
+  const despues = await calidos();
+  const modoDespues = await page.evaluate(
+    () =>
+      document.querySelector<HTMLElement>('[data-ascii]')?.dataset.glMode ??
+      document.querySelector<HTMLElement>('[data-ascii]')?.dataset.mode ??
+      '?',
   );
-  check('el toque en el retrato alterna a modo color', antes !== despues, `${antes} → ${despues}`);
+  check(
+    'el toque en el retrato alterna a modo color',
+    antes >= 0 && despues > antes + 2000,
+    `píxeles cálidos ${antes} → ${despues} · modo ${modoAntes} → ${modoDespues}`,
+  );
   await page.screenshot({ path: join(OUT, 'retrato-tocado.png') });
 
   // --- El CTA: el scramble se desactiva, pero el relevo del "+" responde al toque

@@ -16,9 +16,30 @@
   }
 
   .process__steps {
+    position: relative;
     display: grid;
     gap: clamp(2.5rem, 5vw, 4.5rem);
     list-style: none;
+  }
+
+  /* El cubito que baja de paso en paso. Es UNO solo para toda la lista: el bullet de cada paso
+     queda como hueco reservado (invisible) para que el layout no baile cuando el cubito lo
+     ocupa. Mismo patrón que el marcador de Work, PERO con otro gesto a propósito — ver la nota
+     de CLAUDE.md sobre por qué los dos marcadores divergen. */
+  .process__marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: var(--accent-text);
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .process__marker {
+      display: none;
+    }
   }
 
   .process__body {
@@ -38,13 +59,17 @@
     opacity: 1;
   }
 
+  /* Hueco del cubito: ocupa sitio pero no se ve. Con reduced-motion no hay cubito que viaje,
+     así que el bullet del paso activo vuelve a hacer de indicador. */
   .process__step .bullet {
     margin-top: 0.9em;
     opacity: 0;
   }
 
-  .process__step[data-active='true'] .bullet {
-    opacity: 1;
+  @media (prefers-reduced-motion: reduce) {
+    .process__step[data-active='true'] .bullet {
+      opacity: 1;
+    }
   }
 
   .process__n {

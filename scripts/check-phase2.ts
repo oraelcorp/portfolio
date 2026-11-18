@@ -7,6 +7,7 @@ import type { Browser, Page } from 'playwright';
 import { startPreview } from './lib/preview.ts';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { site } from '../src/content/site.ts';
 
 const PORT = 4174;
 const URL = `http://localhost:${PORT}/`;
@@ -110,12 +111,33 @@ async function testMenuAndNav(browser: Browser): Promise<void> {
   await sleep(500);
 
   // --- El nav es transparente (como la referencia)
-  const navBg = await page.evaluate(
-    () => getComputedStyle(document.querySelector('[data-nav]')!).backgroundColor,
+  // Lo que importa es que el nav DEJE VER lo de detrás, no que su fondo sea exactamente
+  // `rgba(0, 0, 0, 0)`. Comparado como cadena, un velo mínimo o un `backdrop-filter` —que el
+  // propio repo ya ha considerado, ver `tune-nav-scrim.ts`— tumbaban el check aunque el
+  // resultado se mantuviera. Se mide cuánto tapa: alfa del fondo más el desenfoque, si lo hay.
+  const nav = await page.evaluate(() => {
+    const cs = getComputedStyle(document.querySelector('[data-nav]')!);
+    const m = cs.backgroundColor.match(/[\d.]+/g) ?? ['0', '0', '0', '0'];
+    return {
+      bg: cs.backgroundColor,
+      alfa: m.length >= 4 ? Number(m[3]) : cs.backgroundColor === 'transparent' ? 0 : 1,
+      filtro: cs.backdropFilter,
+    };
+  });
+  check(
+    'el nav deja ver lo que pasa por detrás',
+    nav.alfa <= 0.1 && (nav.filtro === 'none' || nav.filtro === ''),
+    `fondo ${nav.bg} (alfa ${nav.alfa}) · backdrop-filter ${nav.filtro}`,
   );
-  check('el nav no tiene fondo propio', navBg === 'rgba(0, 0, 0, 0)', navBg);
 
   // --- Abrir con el ratón
+  // Estado EN REPOSO antes de abrir: sin él no se puede afirmar que algo "cambia", solo que
+  // tiene cierto valor — y eso es justo lo que ataba este check a unas palabras concretas.
+  const reposo = await page.evaluate(() => ({
+    label: document.querySelector<HTMLElement>('[data-menu-label]')?.textContent?.trim() ?? '',
+    logo: document.querySelector<HTMLElement>('[data-logo]')?.textContent?.trim() ?? '',
+  }));
+
   await page.click('[data-menu-toggle]');
   await sleep(300);
   await page.screenshot({ path: join(OUT, 'menu-opening.png') });
@@ -137,8 +159,20 @@ async function testMenuAndNav(browser: Browser): Promise<void> {
   check('aria-expanded pasa a true', openState.expanded === 'true');
   check('el panel queda visible y no inert', openState.open === 'true' && !openState.inert);
   check('el foco entra al panel', openState.focusInPanel === true);
-  check('el label cambia a CLOSE', openState.label === 'CLOSE', openState.label);
-  check('el wordmark cambia a TRAPERO', openState.logo === 'TRAPERO', openState.logo);
+  // El texto del swap es CONTENIDO (`site.nav.closeLabel` y `site.nav.logoAlt`), no una
+  // constante del efecto. Escribirlo aquí a mano ataba la suite a unas palabras concretas: en
+  // cuanto se editara el wordmark alternativo, este check fallaría sin que nada se hubiera
+  // roto. Lo que tiene que verificar es que **cambia** y que muestra lo que dice el contenido.
+  check(
+    'el label del menú cambia al abrir y coincide con el contenido',
+    openState.label !== reposo.label && openState.label === site.nav.closeLabel,
+    `${reposo.label} → ${openState.label} (contenido: ${site.nav.closeLabel})`,
+  );
+  check(
+    'el wordmark cambia al abrir y coincide con el contenido',
+    openState.logo !== reposo.logo && openState.logo === site.nav.logoAlt,
+    `${reposo.logo} → ${openState.logo} (contenido: ${site.nav.logoAlt})`,
+  );
 
   // --- Lenis se detiene mientras está abierto
   const scrollBefore = await page.evaluate(() => window.scrollY);

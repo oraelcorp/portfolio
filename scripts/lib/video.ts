@@ -8,6 +8,25 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+/**
+ * Envoltorio de `requestAnimationFrame` que entrega una marca de tiempo ESCALADA, para instalar
+ * con `addInitScript` (o sea antes de que corra el JS del sitio, que es la única forma de que
+ * GSAP nazca ya con el reloj lento).
+ *
+ * Para qué: contra un sitio ajeno solo se puede grabar por ráfaga de pantallazos, y eso llega a
+ * ~15 fps. Un efecto de medio segundo se queda en siete fotogramas, que no dan para leer un
+ * desfase. Estirando el tiempo ×4, la misma ráfaga le saca cuatro veces más. Es el mismo truco
+ * de estrangular el reloj que se usó con el preloader.
+ */
+export const RELOJ_LENTO = (factor: number): string => `(() => {
+  const raf = window.requestAnimationFrame.bind(window);
+  let t0 = null;
+  window.requestAnimationFrame = (cb) => raf((t) => {
+    if (t0 === null) t0 = t;
+    cb(t0 + (t - t0) / ${factor});
+  });
+})()`;
+
 export interface Caja {
   x: number;
   y: number;

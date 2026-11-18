@@ -42,8 +42,22 @@
     --fs-h2: clamp(2.25rem, 4.2vw, 4rem); /* 60.5px @1440 */
     --fs-h3: clamp(1.5rem, 2.2vw, 2.25rem); /* 31.7px @1440 */
     --fs-body: 1rem; /* 16/24 */
-    --fs-body-lg: clamp(1.125rem, 1.6vw, 1.5rem);
-    --fs-label: 0.875rem; /* mono 14px */
+    /* MEDIDO contra la referencia el 2026-09-10 (`scripts/recon-tipografia.ts`): nuestro display
+       y nuestros h2/h3 coinciden con los suyos dentro de 0.3 px, pero su cuerpo de texto es de
+       16 px y el nuestro de 23 — un 44 % más grande. Eso hundía la razón display/body de 5.47 a
+       3.82, que es lo que hacía que la jerarquía se sintiera menos equilibrada. Se baja la
+       variante grande a 17–20 px: sigue destacando sobre los 16 del cuerpo (el subtítulo del
+       hero necesita su papel) y la razón sube a ~4.4. */
+    /* Ojo con la forma del clamp: con un término `vw` a secas (1.15vw = 16.6 px a 1440) el
+       valor se queda POR DEBAJO del mínimo y el clamp lo aplasta a 17 px en todos los anchos —
+       medido, salía 17 en vez de los 20 buscados. Con `rem + vw` sí escala: 20 px a 1440,
+       19.6 a 1024 y 17.4 a 390. */
+    --fs-body-lg: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+    --fs-label: 0.9375rem; /* mono 15px · los de la referencia miden 15.7 (medido) */
+    /* El BOTÓN tiene su propio tamaño, separado del label. En la referencia no miden lo mismo:
+       sus labels mono están en 15.7 px y sus botones en 14 (medido en `recon-botones.ts`), y
+       tenerlos atados al mismo token hacía que subir los labels engordara también los botones. */
+    --fs-btn: 0.875rem; /* mono 14px · el de la referencia */
     --fs-label-sm: 0.8125rem; /* mono 13px */
     --fs-footer: clamp(4.5rem, 21vw, 19rem); /* wordmark gigante (sans, no pixel) */
 

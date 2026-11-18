@@ -4,7 +4,7 @@
 
 import { gsap } from '../core/gsap.ts';
 import { prefersReducedMotion, type Module } from '../core/utils.ts';
-import { splitReveal } from '../components/SplitReveal.ts';
+import { barWipe } from '../components/BarWipe.ts';
 
 /** `exiting` es el momento en que el preloader arranca su salida. */
 export function initHeroIntro(exiting: Promise<void>): Module {
@@ -16,13 +16,14 @@ export function initHeroIntro(exiting: Promise<void>): Module {
   if (!title) return { destroy() {} };
 
   const reduced = prefersReducedMotion();
-  // Entrada larga y muy suave: las letras se posan en vez de aterrizar
-  const reveal = splitReveal(title, {
-    trigger: 'manual',
-    duration: 1.8,
-    stagger: 0.14,
-    ease: 'silk',
-  });
+  // El titular entra con el BARRIDO DE DOS BARRAS medido en la referencia
+  // (`recon/texto-entrada.txt`, mecánica en `components/BarWipe.ts`). Sustituye al revelado por
+  // líneas enmascaradas que había: no es un cambio de gusto, es que la referencia no desliza el
+  // texto — lo imprime detrás de una barra.
+  //
+  // `stagger` es lo único que NO sale de la medición: su h2 era de una sola línea, así que no
+  // había desfase entre líneas que medir. Se usa el 0.08 del resto de reveals del sitio.
+  const reveal = barWipe(title, { trigger: 'manual', stagger: 0.08 });
 
   const rest = [sub, actions].filter((el): el is HTMLElement => el !== null);
 

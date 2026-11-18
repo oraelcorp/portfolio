@@ -160,3 +160,25 @@
     }
   }
 }
+
+@layer components {
+  /* Marcador de hover de cada proyecto. Decoración pura: lo crea `hovers.ts` y no existe sin JS.
+     Su entrada (escala desde 0 con un giro de 45°) es decisión nuestra: el de la referencia no
+     se pudo medir —su hover no se dispara bajo automatización— así que no hay número que copiar. */
+  .work__cube {
+    display: inline-block;
+    width: 0.5em;
+    height: 0.5em;
+    margin-right: 0.45em;
+    vertical-align: baseline;
+    background: var(--accent-text, var(--accent));
+    transform: scale(0) rotate(-45deg);
+    transform-origin: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .work__cube {
+      display: none;
+    }
+  }
+}

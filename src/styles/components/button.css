@@ -12,6 +12,9 @@
   }
 
   .btn {
+    /* 44 px, y NO se baja a los 40 de la referencia a propósito: `audit-responsive.ts` exige
+       44x44 a los controles de verdad (guía de plataforma; WCAG 2.2 AA pide 24x24). Lo que se
+       ajusta a su escala es la TIPOGRAFÍA del botón, no su zona táctil. */
     --btn-h: 2.75rem;
     display: inline-flex;
     gap: 0.5rem;
@@ -20,7 +23,7 @@
     min-height: var(--btn-h);
     padding: 0.5rem 1.25rem;
     font-family: var(--ff-mono);
-    font-size: var(--fs-label);
+    font-size: var(--fs-btn);
     font-weight: 500;
     line-height: 1;
     letter-spacing: var(--ls-mono);
@@ -40,7 +43,8 @@
   .btn--icon {
     width: var(--btn-h);
     padding: 0;
-    font-size: 1.125rem;
+    /* El "+" baja con la etiqueta para que no quede desproporcionado dentro de la misma caja. */
+    font-size: 1rem;
     /* Solo `transform`, como la referencia: nada de animar layout */
     transition: transform var(--dur-cta) var(--ease-cta);
   }
@@ -145,6 +149,10 @@
   .btn-text {
     position: relative;
     align-self: center;
+    /* Baja de 16 a 15 px para no pesar más que el botón que tiene al lado, que ahora está en 14.
+       No se baja más: es un enlace, así que su suelo de zona táctil son 24 px (WCAG 2.2 AA) y a
+       15 px con este padding la caja se queda en ~30. */
+    font-size: 0.9375rem;
     padding-block: 0.25rem;
     color: var(--on-surface);
   }

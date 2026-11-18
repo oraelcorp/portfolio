@@ -184,7 +184,9 @@ function process(): string {
     <div class="process__body">
       <div>
         <p class="process__intro t-body-lg">${esc(site.process.intro)}</p>
-        <ol class="process__steps">${steps}</ol>
+        <ol class="process__steps">
+          <i class="process__marker" data-process-marker aria-hidden="true"></i>${steps}
+        </ol>
       </div>
       <div class="process__media" data-process-media>
         ${site.process.steps

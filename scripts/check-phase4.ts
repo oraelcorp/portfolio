@@ -67,17 +67,27 @@ async function testHeroIntro(browser: Browser): Promise<void> {
 
     await new Promise<void>((done) => {
       const tick = (): void => {
-        // `gsap.from` ya aplica el estado inicial nada más crearse, así que basta con ver un
-        // transform para dar por buena la animación. Lo que interesa es cuándo EMPIEZA A
-        // CAMBIAR: se guarda el primer valor y se busca la primera variación real.
+        // Lo que interesa es cuándo EMPIEZA A CAMBIAR el titular: se guarda el primer valor y
+        // se busca la primera variación real.
+        //
+        // Se miran DOS señales, no una. Hasta el 2026-09-10 esto vigilaba solo el
+        // desplazamiento vertical (`m42`), porque el titular entraba deslizando líneas
+        // enmascaradas. Con el barrido de dos barras el texto **no se mueve**: lo que anima es
+        // la escala horizontal (`m11`) de las barras. El check seguía pasando por sitio pero
+        // medía una conducta retirada, y reportaba "titular a -1 ms" como si nada hubiera
+        // entrado. Mirando las dos, sobrevive a los dos mecanismos.
         if (titleMovedAt < 0) {
-          const line = [...document.querySelectorAll<HTMLElement>('[data-hero-title] *')]
-            .map((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).m42)
-            .find((v) => Math.abs(v) > 1);
+          const valores = [...document.querySelectorAll<HTMLElement>('[data-hero-title] *')]
+            .map((el) => {
+              const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+              return { y: m.m42, sx: m.m11 };
+            })
+            .find((v) => Math.abs(v.y) > 1 || v.sx < 0.999);
 
-          if (line !== undefined) {
-            if (baseline === null) baseline = line;
-            else if (Math.abs(line - baseline) > 2) titleMovedAt = performance.now() - t0;
+          if (valores !== undefined) {
+            const señal = Math.abs(valores.y) > 1 ? valores.y : valores.sx * 100;
+            if (baseline === null) baseline = señal;
+            else if (Math.abs(señal - baseline) > 2) titleMovedAt = performance.now() - t0;
           }
         }
         if (overlayGoneAt < 0 && !document.querySelector('[data-preloader]')) {
@@ -291,9 +301,16 @@ async function testSecondHalf(browser: Browser): Promise<void> {
   await scrollTo(page, 'process');
   const firstActive = await page.evaluate(() => ({
     step: document.querySelector('[data-step][data-active="true"]')?.textContent?.slice(0, 12) ?? '',
-    media: [...document.querySelectorAll('[data-process-media-item]')].findIndex(
-      (m) => (m as HTMLElement).dataset.active === 'true',
-    ),
+    // El ÚLTIMO activo, no el primero. Desde el 2026-09-13 las medias se APILAN —cada una
+    // entra y se queda, como en la referencia—, así que la primera está activa desde el paso 1
+    // y `findIndex` devolvía 0 siempre: el check reportaba "media 0 → 0" como si el
+    // scrollytelling no avanzara, cuando lo que había cambiado era la conducta, no el efecto.
+    // Con la pila, quien manda es la cima.
+    media: (() => {
+      const items = [...document.querySelectorAll<HTMLElement>('[data-process-media-item]')];
+      for (let i = items.length - 1; i >= 0; i--) if (items[i]?.dataset.active === 'true') return i;
+      return -1;
+    })(),
   }));
 
   await page.evaluate(() => {
@@ -304,9 +321,16 @@ async function testSecondHalf(browser: Browser): Promise<void> {
 
   const lastActive = await page.evaluate(() => ({
     step: document.querySelector('[data-step][data-active="true"]')?.textContent?.slice(0, 12) ?? '',
-    media: [...document.querySelectorAll('[data-process-media-item]')].findIndex(
-      (m) => (m as HTMLElement).dataset.active === 'true',
-    ),
+    // El ÚLTIMO activo, no el primero. Desde el 2026-09-13 las medias se APILAN —cada una
+    // entra y se queda, como en la referencia—, así que la primera está activa desde el paso 1
+    // y `findIndex` devolvía 0 siempre: el check reportaba "media 0 → 0" como si el
+    // scrollytelling no avanzara, cuando lo que había cambiado era la conducta, no el efecto.
+    // Con la pila, quien manda es la cima.
+    media: (() => {
+      const items = [...document.querySelectorAll<HTMLElement>('[data-process-media-item]')];
+      for (let i = items.length - 1; i >= 0; i--) if (items[i]?.dataset.active === 'true') return i;
+      return -1;
+    })(),
     // Se compara contra el suelo DECLARADO (--process-dim), no contra un número fijo: con
     // un umbral de 0.6 a pelo, subir el suelo a exactamente 0.6 daba "0 atenuados" aunque
     // la atenuación funcionara. El check tiene que seguir al diseño, no a una constante.

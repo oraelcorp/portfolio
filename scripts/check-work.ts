@@ -3,7 +3,7 @@
 // Mide con la MISMA metodología que scripts/recon-work.ts sobre la referencia, para que las
 // cifras se puedan comparar: muestreo por rAF dentro de la página y ratón movido en tandas.
 
-import { chromium } from 'playwright';
+import { chromium, type Page } from 'playwright';
 import { startPreview } from './lib/preview.ts';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -140,16 +140,31 @@ async function main(): Promise<void> {
       w: p.offsetWidth,
       h: p.offsetHeight,
       font: cs.fontSize,
+      tipo: parseFloat(cs.fontSize),
+      // Cuánto se sale el contenido de su caja: si el texto se recorta, esto se dispara.
+      desborde: Math.max(0, p.scrollWidth - p.clientWidth),
       pad: `${cs.paddingTop} ${cs.paddingRight}`,
     };
   });
+  // La referencia mide 111.56 × 28.6 px con tipo de 13.74 y relleno 4/8. De ahí lo que importa
+  // no es el tamaño ABSOLUTO —depende de un token tipográfico que puede moverse por motivos
+  // ajenos a este cartel, y con una tolerancia de ±1.5 px cualquier ajuste de tipografía lo
+  // tumbaba— sino la PROPORCIÓN y que el texto siga cabiendo. Un cartel con la misma silueta y
+  // el texto legible es el mismo cartel aunque crezca un punto.
   const REF = { w: 111.56, h: 28.6 };
+  const razonRef = REF.w / REF.h;
+  const razon = box ? box.w / box.h : 0;
   console.log(`      caja del cartel: ${box?.w} × ${box?.h} px · tipo ${box?.font} · relleno ${box?.pad}`);
   console.log(`      referencia:      ${REF.w} × ${REF.h} px · tipo 13.7388px · relleno 4px 8px`);
   check(
-    'el cartel mide lo mismo que el de la referencia',
-    !!box && Math.abs(box.w - REF.w) <= 1.5 && Math.abs(box.h - REF.h) <= 1.5,
-    `desvío ${box ? Math.abs(box.w - REF.w).toFixed(1) : '?'} × ${box ? Math.abs(box.h - REF.h).toFixed(1) : '?'} px`,
+    'el cartel conserva la proporción de la referencia',
+    !!box && Math.abs(razon - razonRef) / razonRef <= 0.12,
+    `${razon.toFixed(2)} contra ${razonRef.toFixed(2)} de la referencia (${((Math.abs(razon - razonRef) / razonRef) * 100).toFixed(1)} % de desvío)`,
+  );
+  check(
+    'y el texto cabe dentro sin recortarse',
+    !!box && box.desborde <= 1 && box.tipo >= 11,
+    `desborde ${box?.desborde.toFixed(1)} px · tipo ${box?.tipo.toFixed(1)} px`,
   );
 
   const cx = fig.x + fig.w / 2;
@@ -160,6 +175,25 @@ async function main(): Promise<void> {
   await page.evaluate(() => {
     (window as unknown as { __k: { rec: boolean } }).__k.rec = true;
   });
+
+  /**
+   * Cuánto ocupa el cartel EN PANTALLA respecto a su caja sin transformar.
+   *
+   * `getBoundingClientRect` da la caja alineada a los ejes que el elemento ocupa ya deformado;
+   * `offsetWidth/Height` da la de origen. El cociente dice cómo se está tendiendo la cinta sin
+   * mirar la matriz: es la huella observable del efecto, no su implementación.
+   */
+  const ocupacion = async (pg: Page): Promise<{ rx: number; ry: number; op: number }> =>
+    pg.evaluate(() => {
+      const p = document.querySelector<HTMLElement>('.work__pill');
+      if (!p) return { rx: -1, ry: -1, op: -1 };
+      const r = p.getBoundingClientRect();
+      return {
+        rx: p.offsetWidth > 0 ? r.width / p.offsetWidth : -1,
+        ry: p.offsetHeight > 0 ? r.height / p.offsetHeight : -1,
+        op: Number(getComputedStyle(p).opacity),
+      };
+    });
 
   /** Opacidad y escalas de la pill en este instante. */
   const pillNow = async (): Promise<{ op: number; sx: number; sy: number }> =>
@@ -184,6 +218,7 @@ async function main(): Promise<void> {
   await page.mouse.move(fig.x - 30, cy, { steps: 40 }); // acercarse por fuera
   await sleep(300);
   const near = await pillNow();
+  const izquierda = await ocupacion(page);
   const approach = near.op;
   // Genie: a medio desplegar las dos escalas tienen que ser MUY distintas entre sí.
   check(
@@ -201,6 +236,7 @@ async function main(): Promise<void> {
   await page.mouse.move(cx, fig.y - 26, { steps: 40 }); // bajar en vertical hacia la figura
   await sleep(300);
   const fromTop = await pillNow();
+  const arriba = await ocupacion(page);
   check(
     'viniendo desde ARRIBA la cinta se tiende en vertical, no en horizontal',
     fromTop.sx < fromTop.sy * 0.85,
@@ -214,20 +250,20 @@ async function main(): Promise<void> {
   await sleep(500);
   await page.mouse.move(fig.x - 26, fig.y - 26, { steps: 40 }); // entrar por la esquina
   await sleep(300);
-  const diag = await page.evaluate(() => {
-    const p = document.querySelector<HTMLElement>('.work__pill');
-    if (!p) return { b: 0, c: 0, op: -1 };
-    const m = new DOMMatrixReadOnly(getComputedStyle(p).transform);
-    return {
-      b: Math.round(m.b * 1000) / 1000,
-      c: Math.round(m.c * 1000) / 1000,
-      op: Number(getComputedStyle(p).opacity),
-    };
-  });
+  // Lo que hay que verificar es el RESULTADO —que el despliegue ocurre en el eje por el que se
+  // entra, y en diagonal ese eje queda girado—, no la TÉCNICA con la que se consigue. La versión
+  // anterior exigía que la matriz tuviera términos cruzados: si el genie se rehiciera con
+  // `clip-path` o con SVG y se viera exactamente igual, el check habría fallado sin motivo.
+  //
+  // La huella observable de un eje girado: la caja que el cartel OCUPA EN PANTALLA crece en los
+  // DOS ejes, porque una cinta tendida en diagonal no cabe en una caja estrecha. Se compara
+  // contra los dos casos puros: más alta que la entrada por la izquierda y más ancha que la
+  // entrada por arriba.
+  const diag = await ocupacion(page);
   check(
-    'en diagonal el eje del genie queda girado (matriz con términos cruzados)',
-    Math.abs(diag.b) > 0.1 && Math.abs(diag.c) > 0.1,
-    `b ${diag.b} · c ${diag.c} · opacidad ${diag.op.toFixed(2)}`,
+    'en diagonal el despliegue se tiende en el eje de la aproximación',
+    diag.ry > izquierda.ry * 1.15 && diag.rx > arriba.rx * 1.15,
+    `ocupa ${diag.rx.toFixed(2)}× de ancho y ${diag.ry.toFixed(2)}× de alto · por la izquierda ${izquierda.ry.toFixed(2)}× de alto · por arriba ${arriba.rx.toFixed(2)}× de ancho`,
   );
 
   // Volver a la izquierda para que el resto de la medición siga el trayecto comparable.

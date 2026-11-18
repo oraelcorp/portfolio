@@ -4,7 +4,7 @@
 
 import { gsap, ScrollTrigger } from '../core/gsap.ts';
 import { prefersReducedMotion, type Module } from '../core/utils.ts';
-import { splitReveal, type SplitRevealHandle } from '../components/SplitReveal.ts';
+import { barWipe } from '../components/BarWipe.ts';
 
 interface Group {
   /** Selector de los elementos que entran con stagger. */
@@ -40,9 +40,16 @@ export function initReveals(): Module {
   const modules: Module[] = [];
   const triggers: ScrollTrigger[] = [];
 
-  // Titulares de sección
+  // Titulares de sección: TODOS con el barrido de dos barras.
+  //
+  // Empezó aplicándose solo a las cuatro secciones que Javier señaló en la referencia, y al ver
+  // el conjunto decidió unificarlo: dos tratamientos de entrada distintos conviviendo en la
+  // misma página se notan. `SplitReveal` se queda en el repo —sigue siendo un componente válido
+  // y es el fallback natural si algún día un titular no admite barrido— pero ya no lo usa nadie.
+  //
+  // El disparo no cambia respecto a lo que había: `top 80%`, `once`, igual que `splitReveal`.
   const headings = [...document.querySelectorAll<HTMLElement>('[data-section] h2')];
-  const reveals: SplitRevealHandle[] = headings.map((h) => splitReveal(h));
+  const reveals: Module[] = headings.map((h) => barWipe(h));
   modules.push(...reveals);
 
   if (reduced) {
